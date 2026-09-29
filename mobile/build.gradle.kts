@@ -1,11 +1,18 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
 }
 
-// Optional local-only input. CI and ordinary source builds contain no accessory identity.
+// Explicit local input for both terminal builds and Android Studio Run.
+val localProperties = Properties().apply {
+    val propertiesFile = rootProject.file("local.properties")
+    if (propertiesFile.isFile) propertiesFile.inputStream().use { load(it) }
+}
 val localAuthenticationAssets = providers.environmentVariable("DIPLAY_AUTH_ASSETS_DIR")
-    .orNull?.let { file(it).canonicalFile }
+    .orNull ?: localProperties.getProperty("diplay.auth.assets.dir")
+val authenticationAssetsDirectory = localAuthenticationAssets?.let { file(it).canonicalFile }
 
 android {
     namespace = "com.shilapi.xcertplay"
@@ -23,7 +30,7 @@ android {
     }
 
 
-    localAuthenticationAssets?.let { sourceSets.getByName("main").assets.srcDir(it) }
+    authenticationAssetsDirectory?.let { sourceSets.getByName("main").assets.srcDir(it) }
 
     signingConfigs {
         create("release") {
@@ -86,7 +93,7 @@ val rejectBundledCredentials by tasks.registering {
     group = "verification"
     description = "Reject unexpected credential files in APK assets."
     val filesToCheck = credentialAssets
-    val allowed = localAuthenticationAssets?.let { dir ->
+    val allowed = authenticationAssetsDirectory?.let { dir ->
         listOf("identity.pk8", "certificate.p7b").map { dir.resolve("offline-mfi/$it").canonicalFile }.toSet()
     } ?: emptySet()
     inputs.files(filesToCheck)
@@ -102,10 +109,10 @@ tasks.named("preBuild") { dependsOn(rejectBundledCredentials) }
 val verifyStandaloneAuthentication by tasks.registering {
     group = "verification"
     description = "Require the explicit runtime authentication input for a standalone car-test APK."
-    val directory = localAuthenticationAssets
+    val directory = authenticationAssetsDirectory
     doLast {
         check(directory != null) {
-            "Standalone car builds require DIPLAY_AUTH_ASSETS_DIR; assembleDebug alone is source-only."
+            "Standalone car builds require DIPLAY_AUTH_ASSETS_DIR or diplay.auth.assets.dir in local.properties."
         }
         check(listOf("identity.pk8", "certificate.p7b").all {
             directory.resolve("offline-mfi/$it").let { file -> file.isFile && file.length() > 0 }
