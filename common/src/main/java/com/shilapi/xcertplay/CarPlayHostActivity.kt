@@ -767,7 +767,7 @@ class CarPlayHostActivity : ComponentActivity() {
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         })
         val stage = TextView(this).apply {
-            text = "Getting CarPlay ready…"; textSize = 22f; gravity = Gravity.CENTER
+            text = uiText("Getting CarPlay ready…"); textSize = 22f; gravity = Gravity.CENTER
             setTextColor(Color.rgb(241, 245, 252))
         }
         panel.addView(stage)
@@ -784,7 +784,7 @@ class CarPlayHostActivity : ComponentActivity() {
             wifiRecoveryButton = this
         }, LinearLayout.LayoutParams(dp(300), dp(64)).apply { bottomMargin = dp(12) })
         panel.addView(Button(this).apply {
-            text = "Back to DiPlay"; isAllCaps = false; textSize = 18f
+            text = uiText("Back to DiPlay"); isAllCaps = false; textSize = 18f
             setTextColor(Color.rgb(12, 17, 27))
             background = GradientDrawable().apply { setColor(Color.rgb(166, 200, 255)); cornerRadius = dp(20).toFloat() }
             setOnClickListener { showDiPlayHome() }
@@ -1314,7 +1314,7 @@ class CarPlayHostActivity : ComponentActivity() {
         )
 
         val save = Button(this).apply {
-            text = "Save and reconnect"
+            text = uiText("Save and reconnect")
             isAllCaps = false
             textSize = 17f
             setTextColor(MENU_BUTTON_TEXT)
@@ -1331,7 +1331,7 @@ class CarPlayHostActivity : ComponentActivity() {
         )
 
         val exitApplicationButton = Button(this).apply {
-            text = "EXIT APPLICATION"
+            text = uiText("EXIT APPLICATION")
             isAllCaps = false
             textSize = 17f
             setTextColor(Color.WHITE)
@@ -1869,7 +1869,7 @@ class CarPlayHostActivity : ComponentActivity() {
         }
         actions.addView(
             Button(this).apply {
-                text = "Choose image"
+                text = uiText("Choose image")
                 isAllCaps = false
                 setOnClickListener {
                     externalActivityInProgress = true
@@ -1883,7 +1883,7 @@ class CarPlayHostActivity : ComponentActivity() {
         )
         actions.addView(
             Button(this).apply {
-                text = "Default icon"
+                text = uiText("Default icon")
                 isAllCaps = false
                 setOnClickListener {
                     AirPlayPersistence.clearCustomAirPlayIcon(this@CarPlayHostActivity)
@@ -1940,13 +1940,13 @@ class CarPlayHostActivity : ComponentActivity() {
         }
         val left = RadioButton(this).apply {
             id = View.generateViewId()
-            text = "Left-hand drive"
+            text = uiText("Left-hand drive")
             setTextColor(Color.WHITE)
             isChecked = !rightHandDrive
         }
         val right = RadioButton(this).apply {
             id = View.generateViewId()
-            text = "Right-hand drive"
+            text = uiText("Right-hand drive")
             setTextColor(Color.WHITE)
             isChecked = rightHandDrive
         }
@@ -2034,7 +2034,7 @@ class CarPlayHostActivity : ComponentActivity() {
         }
         buttons.addView(
             Button(this).apply {
-                text = "Set"
+                text = uiText("Set")
                 isAllCaps = false
                 setOnClickListener { openSafeAreaEditor() }
             },
@@ -2042,7 +2042,7 @@ class CarPlayHostActivity : ComponentActivity() {
         )
         buttons.addView(
             Button(this).apply {
-                text = "Reset"
+                text = uiText("Reset")
                 isAllCaps = false
                 setOnClickListener { resetSafeAreaForCurrentSize() }
             },
@@ -2106,7 +2106,7 @@ class CarPlayHostActivity : ComponentActivity() {
         }
         controls.addView(
             Button(this).apply {
-                text = "Cancel"
+                text = uiText("Cancel")
                 isAllCaps = false
                 setOnClickListener { closeSafeAreaEditor() }
             },
@@ -2114,7 +2114,7 @@ class CarPlayHostActivity : ComponentActivity() {
         )
         controls.addView(
             Button(this).apply {
-                text = "Save"
+                text = uiText("Save")
                 isAllCaps = false
                 setOnClickListener { saveSafeAreaEditor() }
             },
@@ -2195,7 +2195,7 @@ class CarPlayHostActivity : ComponentActivity() {
         addView(
             Switch(this@CarPlayHostActivity).apply {
                 isChecked = checked
-                contentDescription = description
+                contentDescription = uiText(description)
                 showText = false
                 thumbTintList = ColorStateList(
                     arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
@@ -2473,7 +2473,7 @@ class CarPlayHostActivity : ComponentActivity() {
         color: Int,
         bold: Boolean = false,
     ): TextView = TextView(this).apply {
-        this.text = text
+        this.text = uiText(text)
         textSize = sizeSp
         setTextColor(color)
         typeface = if (bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT

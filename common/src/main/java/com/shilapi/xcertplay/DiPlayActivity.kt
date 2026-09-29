@@ -332,11 +332,11 @@ class DiPlayActivity : ComponentActivity() {
             com.shilapi.xcertplay.network.CarHotspotStatus.isEnabled(this) == false
 
     private fun carHotspotOffDialog() {
-        AlertDialog.Builder(this).setTitle("Car hotspot is off")
-            .setMessage("DiPlay connects through the car hotspot “${AirPlayPersistence.loadManualHotspotSsid(this)}”. Turn it on in the car settings, then connect.")
-            .setPositiveButton("Open car settings") { _, _ -> openCarWifiSettings() }
-            .setNeutralButton("Connect") { _, _ -> connect(true) }
-            .setNegativeButton("Cancel", null).show()
+        AlertDialog.Builder(this).setTitle(uiText("Car hotspot is off"))
+            .setMessage(uiText("DiPlay connects through the car hotspot “${AirPlayPersistence.loadManualHotspotSsid(this)}”. Turn it on in the car settings, then connect."))
+            .setPositiveButton(uiText("Open car settings")) { _, _ -> openCarWifiSettings() }
+            .setNeutralButton(uiText("Connect")) { _, _ -> connect(true) }
+            .setNegativeButton(uiText("Cancel"), null).show()
     }
 
     // BYD maps the AOSP tether action to its own hotspot screen; other firmware falls back to Wi-Fi settings.
@@ -447,9 +447,9 @@ class DiPlayActivity : ComponentActivity() {
     private fun askHotspotCredentials(done: (String, String) -> Unit) {
         val fields = column().apply { setPadding(dp(24), dp(12), dp(24), dp(12)) }
         fields.addView(label("Copy these from the car’s hotspot settings. Use 5 GHz if available. Saving here does not change the car’s hotspot.", 16, MUTED))
-        val ssid = EditText(this).apply { hint = "Hotspot name"; setText(storedSsid()); setSingleLine() }
+        val ssid = EditText(this).apply { hint = uiText("Hotspot name"); setText(storedSsid()); setSingleLine() }
         val password = EditText(this).apply {
-            hint = "Hotspot password"; setText(storedPassword()); setSingleLine()
+            hint = uiText("Hotspot password"); setText(storedPassword()); setSingleLine()
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
         }
         ssid.imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_NEXT or android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI
@@ -468,7 +468,7 @@ class DiPlayActivity : ComponentActivity() {
         }
         fields.addView(ssid); fields.addView(password)
         fields.addView(CheckBox(this).apply {
-            text = "Show password"
+            text = uiText("Show password")
             setOnCheckedChangeListener { _, checked ->
                 password.transformationMethod = if (checked) null else android.text.method.PasswordTransformationMethod.getInstance()
                 password.setSelection(password.text.length)
@@ -477,10 +477,10 @@ class DiPlayActivity : ComponentActivity() {
         val error = label("", 14, WARNING)
         error.accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         fields.addView(error)
-        val dialog = AlertDialog.Builder(this).setTitle("Car hotspot details")
+        val dialog = AlertDialog.Builder(this).setTitle(uiText("Car hotspot details"))
             .setView(ScrollView(this).apply { addView(fields) })
-            .setPositiveButton("Save details", null).setNegativeButton("Cancel") { _, _ -> hideKeyboard() }
-            .setNeutralButton("Hide keyboard", null).create()
+            .setPositiveButton(uiText("Save details"), null).setNegativeButton(uiText("Cancel")) { _, _ -> hideKeyboard() }
+            .setNeutralButton(uiText("Hide keyboard"), null).create()
         dialog.setOnShowListener {
             dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
             dialog.getButton(android.app.AlertDialog.BUTTON_NEUTRAL).setOnClickListener { hideKeyboard() }
@@ -522,10 +522,10 @@ class DiPlayActivity : ComponentActivity() {
         body.addView(label("3. Tap Check and enable below. This enables the cluster map and automatic theme following. An active CarPlay session reconnects once. You can then disconnect the computer.", 16, TEXT))
         val status = label(if (DiLink51ClusterMonitor.hasAccess(this)) "Permission enabled · ready to use" else "Permission not enabled yet", 16, TEXT)
         body.addView(status)
-        val dialog = AlertDialog.Builder(this).setTitle("Automatic cluster map setup")
+        val dialog = AlertDialog.Builder(this).setTitle(uiText("Automatic cluster map setup"))
             .setView(ScrollView(this).apply { addView(body) })
-            .setNegativeButton("Close", null)
-            .setPositiveButton("Check and enable", null).create()
+            .setNegativeButton(uiText("Close"), null)
+            .setPositiveButton(uiText("Check and enable"), null).create()
         dialog.setOnShowListener {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 if (DiLink51ClusterMonitor.hasAccess(this)) {
@@ -536,7 +536,7 @@ class DiPlayActivity : ComponentActivity() {
                     toast("Automatic map enabled. Open the cluster map card or select Map theme.")
                     reconnectForClusterMap()
                 } else {
-                    status.text = "Still waiting for Usage Access. Check that the command ran successfully for this car, then try again."
+                    status.text = uiText("Still waiting for Usage Access. Check that the command ran successfully for this car, then try again.")
                 }
             }
         }
@@ -565,9 +565,9 @@ class DiPlayActivity : ComponentActivity() {
                 android.text.InputType.TYPE_CLASS_TEXT
             }
         }
-        AlertDialog.Builder(this).setTitle(title).setView(input)
-            .setPositiveButton("Save") { _, _ -> save(input.text.toString().let { if (secret) it else it.trim() }) }
-            .setNegativeButton("Cancel", null).show()
+        AlertDialog.Builder(this).setTitle(uiText(title)).setView(input)
+            .setPositiveButton(uiText("Save")) { _, _ -> save(input.text.toString().let { if (secret) it else it.trim() }) }
+            .setNegativeButton(uiText("Cancel"), null).show()
     }
 
     private fun carPlaySizeControl(parent: LinearLayout) {
@@ -619,19 +619,19 @@ class DiPlayActivity : ComponentActivity() {
         }
         val adapter = getSystemService(BluetoothManager::class.java)?.adapter
         if (adapter == null || !adapter.isEnabled) {
-            AlertDialog.Builder(this).setTitle("Turn on Bluetooth")
-                .setMessage("Enable the car’s Bluetooth and pair your iPhone first.")
-                .setPositiveButton("Open Bluetooth") { _, _ -> openSystem(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) }
-                .setNegativeButton("Later", null).show(); return
+            AlertDialog.Builder(this).setTitle(uiText("Turn on Bluetooth"))
+                .setMessage(uiText("Enable the car’s Bluetooth and pair your iPhone first."))
+                .setPositiveButton(uiText("Open Bluetooth")) { _, _ -> openSystem(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) }
+                .setNegativeButton(uiText("Later"), null).show(); return
         }
         val devices = runCatching { adapter.bondedDevices.sortedBy { it.name ?: "" } }.getOrDefault(emptyList())
         if (devices.isEmpty()) {
-            AlertDialog.Builder(this).setTitle("Pair your iPhone")
-                .setMessage("On your iPhone, open Settings → Bluetooth and pair with the car. Then return to DiPlay and choose Connect phone.")
-                .setPositiveButton("Open Bluetooth") { _, _ -> openSystem(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) }
-                .setNegativeButton("Got it", null).show(); return
+            AlertDialog.Builder(this).setTitle(uiText("Pair your iPhone"))
+                .setMessage(uiText("On your iPhone, open Settings → Bluetooth and pair with the car. Then return to DiPlay and choose Connect phone."))
+                .setPositiveButton(uiText("Open Bluetooth")) { _, _ -> openSystem(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) }
+                .setNegativeButton(uiText("Got it"), null).show(); return
         }
-        AlertDialog.Builder(this).setTitle("Choose your iPhone")
+        AlertDialog.Builder(this).setTitle(uiText("Choose your iPhone"))
             .setItems(devices.map { device ->
                 val name = device.name ?: "Paired device"
                 if (devices.count { it.name == device.name } > 1) "$name · ${device.address.takeLast(5)}" else name
@@ -641,15 +641,15 @@ class DiPlayActivity : ComponentActivity() {
                 val start = pendingWireless; pendingWireless = false
                 render()
                 if (start) connect(true)
-            }.setNeutralButton("Pair another") { _, _ -> openSystem(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) }
-            .setNegativeButton("Cancel") { _, _ -> pendingWireless = false }.show()
+            }.setNeutralButton(uiText("Pair another")) { _, _ -> openSystem(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) }
+            .setNegativeButton(uiText("Cancel")) { _, _ -> pendingWireless = false }.show()
     }
 
     private fun wirelessHelp() {
-        AlertDialog.Builder(this).setTitle("Wireless connection help")
-            .setMessage("Pair your iPhone with the car’s Bluetooth, keep Wi-Fi on, and allow CarPlay on the iPhone. Close any other phone-projection app.\n\nIf a previous projection app left its connection running, reset CarPlay Wi-Fi below and connect again. Your car’s normal internet Wi-Fi stays on.")
-            .setPositiveButton("Got it", null)
-            .setNeutralButton("Reset CarPlay Wi-Fi") { _, _ ->
+        AlertDialog.Builder(this).setTitle(uiText("Wireless connection help"))
+            .setMessage(uiText("Pair your iPhone with the car’s Bluetooth, keep Wi-Fi on, and allow CarPlay on the iPhone. Close any other phone-projection app.\n\nIf a previous projection app left its connection running, reset CarPlay Wi-Fi below and connect again. Your car’s normal internet Wi-Fi stays on."))
+            .setPositiveButton(uiText("Got it"), null)
+            .setNeutralButton(uiText("Reset CarPlay Wi-Fi")) { _, _ ->
                 confirmWirelessReset()
             }.show()
     }
@@ -661,11 +661,11 @@ class DiPlayActivity : ComponentActivity() {
     }
 
     private fun confirmWirelessReset() {
-        AlertDialog.Builder(this).setTitle("Reset CarPlay Wi-Fi?")
-            .setMessage("This ends the existing Wi-Fi Direct connection, including one left behind after reinstalling. Close other projection apps first. Your car’s internet Wi-Fi stays on.")
-            .setPositiveButton("Reset and connect") { _, _ ->
+        AlertDialog.Builder(this).setTitle(uiText("Reset CarPlay Wi-Fi?"))
+            .setMessage(uiText("This ends the existing Wi-Fi Direct connection, including one left behind after reinstalling. Close other projection apps first. Your car’s internet Wi-Fi stays on."))
+            .setPositiveButton(uiText("Reset and connect")) { _, _ ->
                 CarPlayBackgroundSession.stop { runOnUiThread { resetWirelessGroup() } }
-            }.setNegativeButton("Cancel", null).show()
+            }.setNegativeButton(uiText("Cancel"), null).show()
     }
 
     private fun resetWirelessGroup() {
@@ -701,15 +701,15 @@ class DiPlayActivity : ComponentActivity() {
 
     private fun refreshStatus() {
         val running = CarPlayBackgroundSession.hasSession()
-        status?.text = when {
+        status?.text = uiText(when {
             setupError != null -> "Setup needs attention"
             CarPlayBackgroundSession.active -> "CarPlay connected"
             running -> "Connecting to your iPhone…"
             DiPlayPreferences.phoneAddress(this) != null -> "Ready for ${DiPlayPreferences.phoneName(this)}"
             else -> "Ready when you are"
-        }
+        })
         if (lastRunning != running) {
-            connectButton?.text = if (running) "Open CarPlay" else "Connect phone"
+            connectButton?.text = uiText(if (running) "Open CarPlay" else "Connect phone")
             disconnectButton?.visibility = if (running) View.VISIBLE else View.GONE
             disconnectButton?.isEnabled = true
             lastRunning = running
@@ -768,13 +768,13 @@ class DiPlayActivity : ComponentActivity() {
             runOnUiThread {
                 exportInProgress = false
                 if (isFinishing || isDestroyed) return@runOnUiThread
-                exportButton?.apply { isEnabled = true; text = "Save diagnostic report" }
+                exportButton?.apply { isEnabled = true; text = uiText("Save diagnostic report") }
                 if (result.isSuccess) {
                     val savedUri = result.getOrThrow()
-                    AlertDialog.Builder(this).setTitle("Diagnostic report saved")
-                        .setMessage(if (uri == null) "Downloads/DiPlay/$fileName" else "Your report was saved to the selected location.")
-                        .setPositiveButton("Done", null)
-                        .setNeutralButton("Share") { _, _ ->
+                    AlertDialog.Builder(this).setTitle(uiText("Diagnostic report saved"))
+                        .setMessage(uiText(if (uri == null) "Downloads/DiPlay/$fileName" else "Your report was saved to the selected location."))
+                        .setPositiveButton(uiText("Done"), null)
+                        .setNeutralButton(uiText("Share")) { _, _ ->
                             runCatching {
                                 startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
                                     type = "text/plain"; putExtra(Intent.EXTRA_STREAM, savedUri)
@@ -784,21 +784,21 @@ class DiPlayActivity : ComponentActivity() {
                             }.onFailure { toast("Report saved. Open it from your file manager to share it.") }
                         }.show()
                 } else {
-                    AlertDialog.Builder(this).setTitle("Could not save the report")
-                        .setMessage("Check that storage is available, or choose another save location.")
-                        .setPositiveButton("Choose location") { _, _ -> chooseReportDestination() }
-                        .setNegativeButton("Close", null).show()
+                    AlertDialog.Builder(this).setTitle(uiText("Could not save the report"))
+                        .setMessage(uiText("Check that storage is available, or choose another save location."))
+                        .setPositiveButton(uiText("Choose location")) { _, _ -> chooseReportDestination() }
+                        .setNegativeButton(uiText("Close"), null).show()
                 }
             }
         }, "diplay-export").start()
     }
     private fun permissionHelp(title: String, body: String) {
-        AlertDialog.Builder(this).setTitle(title).setMessage(body).setPositiveButton("App settings") { _, _ ->
+        AlertDialog.Builder(this).setTitle(uiText(title)).setMessage(uiText(body)).setPositiveButton(uiText("App settings")) { _, _ ->
             openSystem(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
-        }.setNegativeButton("Later", null).show()
+        }.setNegativeButton(uiText("Later"), null).show()
     }
     private fun openSystem(intent: Intent) { runCatching { startActivity(intent) }.onFailure { toast("Open this setting from your car’s Settings app.") } }
-    private fun toast(message: String) { Toast.makeText(this, message, Toast.LENGTH_LONG).show() }
+    private fun toast(message: String) { Toast.makeText(this, uiText(message), Toast.LENGTH_LONG).show() }
     private fun version() = packageManager.getPackageInfo(packageName, 0).versionName ?: "0.1.0-beta.1"
     private fun section(parent: LinearLayout, title: String, icon: Int? = null, build: (LinearLayout) -> Unit) {
         val card = card()
@@ -821,21 +821,22 @@ class DiPlayActivity : ComponentActivity() {
     }
     private fun choice(parent: LinearLayout, title: String, options: List<String>, current: Int, save: (Int) -> Unit) {
         var selection = current
-        val button = button("$title · ${options[selection]}", false) {}
+        val localizedOptions = options.map(::uiText)
+        val button = button("${uiText(title)} · ${localizedOptions[selection]}", false) {}
         button.setOnClickListener {
             var pendingSelection = selection
-            AlertDialog.Builder(this).setTitle(title)
-                .setSingleChoiceItems(options.toTypedArray(), selection) { _, index -> pendingSelection = index }
-                .setPositiveButton(if (CarPlayBackgroundSession.hasSession()) "Apply and reconnect" else "Save") { _, _ ->
+            AlertDialog.Builder(this).setTitle(uiText(title))
+                .setSingleChoiceItems(localizedOptions.toTypedArray(), selection) { _, index -> pendingSelection = index }
+                .setPositiveButton(uiText(if (CarPlayBackgroundSession.hasSession()) "Apply and reconnect" else "Save")) { _, _ ->
                     if (pendingSelection != selection) {
                         selection = pendingSelection
                         save(selection)
-                        button.text = "$title · ${options[selection]}"
+                        button.text = "${uiText(title)} · ${localizedOptions[selection]}"
                         if (CarPlayBackgroundSession.hasSession()) {
                             connect(AirPlayPersistence.loadWirelessEnabled(this))
                         }
                     }
-                }.setNegativeButton("Cancel", null).show()
+                }.setNegativeButton(uiText("Cancel"), null).show()
         }
         parent.addView(button, matchButton(0, 60)); parent.addView(space(12))
     }
@@ -843,12 +844,12 @@ class DiPlayActivity : ComponentActivity() {
     private fun column() = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; layoutParams = LinearLayout.LayoutParams(-1, -2) }
     private fun row() = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; layoutParams = LinearLayout.LayoutParams(-1, -2) }
     private fun label(value: String, size: Int, color: Int, bold: Boolean = false) = TextView(this).apply {
-        text = value; textSize = size.toFloat(); setTextColor(color); gravity = Gravity.CENTER_VERTICAL
+        text = uiText(value); textSize = size.toFloat(); setTextColor(color); gravity = Gravity.CENTER_VERTICAL
         typeface = if (bold) Typeface.create("sans-serif-medium", Typeface.NORMAL) else Typeface.create("sans-serif", Typeface.NORMAL)
         setLineSpacing(dp(3).toFloat(), 1f)
     }
     private fun button(title: String, primary: Boolean, click: () -> Unit) = Button(this).apply {
-        text = title; isAllCaps = false; textSize = 18f; setTextColor(if (primary) BG else TEXT)
+        text = uiText(title); isAllCaps = false; textSize = 18f; setTextColor(if (primary) BG else TEXT)
         typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         background = android.graphics.drawable.RippleDrawable(ColorStateList.valueOf(0x336F9FD9), rounded(if (primary) ACCENT else SURFACE, if (primary) ACCENT else BORDER), null)
         setPadding(dp(16), 0, dp(16), 0); minHeight = dp(56); stateListAnimator = null
