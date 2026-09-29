@@ -42,6 +42,22 @@ private fun translateDynamicUiText(text: String): String = when {
 }
 
 private val UI_ZH = mapOf(
+    "Keep your iPhone nearby with Bluetooth and Wi-Fi on.\nAllow CarPlay if your iPhone asks." to "请将 iPhone 放在附近，并开启蓝牙和 Wi-Fi。\n在 iPhone 提示时允许 CarPlay。",
+    "Use a USB data cable and unlock your iPhone.\nAllow Trust and CarPlay if your iPhone asks." to "请使用 USB 数据线连接，并解锁 iPhone。\n在 iPhone 提示时选择“信任”并允许 CarPlay。",
+    "In CarPlay, swipe down with three fingers to open DiPlay settings." to "在 CarPlay 中，三指向下滑动即可打开 DiPlay 设置。",
+    "Turn on Wi-Fi in the head unit’s settings to connect." to "请在车机设置中开启 Wi-Fi 后连接。",
+    "Allow precise Location for DiPlay in the head unit’s app permissions." to "请在车机应用权限中允许 DiPlay 使用精确位置。",
+    "Allow Nearby devices for DiPlay in the head unit’s app permissions." to "请在车机应用权限中允许 DiPlay 访问附近设备。",
+    "The head unit couldn’t start CarPlay Wi-Fi. Check Wi-Fi and close other projection apps. Retrying…" to "车机无法启动 CarPlay Wi-Fi。请检查 Wi-Fi 并关闭其他投屏应用。正在重试…",
+    "A previous Wi-Fi Direct connection is still running. Reset it to connect." to "上次的 Wi-Fi Direct 连接仍在运行，请重置后再连接。",
+    "Your iPhone isn’t available. Unlock it and check Bluetooth." to "暂时无法连接 iPhone，请解锁手机并检查蓝牙。",
+    "This head unit may not support wireless CarPlay. Try a USB connection." to "此车机可能不支持无线 CarPlay，请尝试通过 USB 连接。",
+    "Allow the connection permission to continue" to "请允许连接权限以继续",
+    "Connection interrupted. Retrying…" to "连接已中断，正在重试…",
+    "Connect your iPhone with a USB cable" to "请使用 USB 数据线连接 iPhone",
+    "Looking for your paired iPhone…" to "正在查找已配对的 iPhone…",
+    "Reconnecting to your iPhone…" to "正在重新连接 iPhone…",
+    "Opening CarPlay…" to "正在打开 CarPlay…",
     "Car home" to "车机主页", "Back" to "返回", "YOUR PHONE. YOUR DRIVE." to "你的手机，你的旅程。",
     "A familiar drive." to "熟悉的驾乘体验。", "Your maps, music and conversations.\nCarPlay, right here on your car display." to "地图、音乐与通话，\n都在车载屏幕上的 CarPlay 中。",
     "WIRELESS CARPLAY" to "无线 CARPLAY", "Ready when you are" to "随时可以连接", "Connect phone" to "连接手机",
