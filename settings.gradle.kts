@@ -22,7 +22,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "xcertplay"
+rootProject.name = "DashFlow"
 include(":common")
 include(":mobile")
 include(":automotive")

@@ -1,4 +1,6 @@
-# DiPlay
+# DashFlow
+
+应用包名为 `com.xyz.dashflow`（调试版：`com.xyz.dashflow.hudtest`）。与原 DiPlay 独立安装，旧版设置不会自动迁移。下方下载链接仍指向历史 DiPlay 发布版本。
 
 为兼容安卓车机提供有线及无线 CarPlay，采用 DiAuto 风格界面。
 

@@ -58,7 +58,7 @@ class DiPlayActivity : ComponentActivity() {
         override fun run() { refreshStatus(); handler.postDelayed(this, 1000) }
     }
     private val bluetoothPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) choosePhone() else permissionHelp("Nearby devices", "Allow Nearby devices so DiPlay can connect to your paired iPhone.")
+        if (granted) choosePhone() else permissionHelp("Nearby devices", "Allow Nearby devices so DashFlow can connect to your paired iPhone.")
     }
     private val export = registerForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
         if (uri != null) exportDiagnostics(uri)
@@ -75,7 +75,7 @@ class DiPlayActivity : ComponentActivity() {
         }
         setupError = runCatching { DiPlayBootstrap.ensure(this) }.exceptionOrNull()?.let {
             android.util.Log.e("DiPlaySetup", "CarPlay authentication could not be loaded", it)
-            "CarPlay authentication could not be loaded. Install the complete DiPlay build over this app. No uninstall or hotspot change is needed."
+            "CarPlay authentication could not be loaded. Install the complete DashFlow build over this app. No uninstall or hotspot change is needed."
         }
         pendingCarHotspotSetup = savedInstanceState?.getBoolean("pending_car_hotspot") ?: false
         page = savedInstanceState?.getString("page") ?: intent.getStringExtra("page") ?: "home"
@@ -117,7 +117,7 @@ class DiPlayActivity : ComponentActivity() {
         scroll.addView(content)
         val header = row().apply { gravity = Gravity.CENTER_VERTICAL }
         header.addView(ImageView(this).apply { setImageResource(R.drawable.ic_carplay); contentDescription = "CarPlay" }, LinearLayout.LayoutParams(dp(36), dp(36)))
-        header.addView(label("DiPlay", 26, TEXT, true).apply { setPadding(dp(12), 0, 0, 0) }, LinearLayout.LayoutParams(0, dp(56), 1f))
+        header.addView(label("DashFlow", 26, TEXT, true).apply { setPadding(dp(12), 0, 0, 0) }, LinearLayout.LayoutParams(0, dp(56), 1f))
         header.addView(button(if (page == "home") "Car home" else "Back", false) {
             if (page == "home") startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME))
             else { page = "home"; render() }
@@ -179,7 +179,7 @@ class DiPlayActivity : ComponentActivity() {
         right.addView(button("Connect with USB", false) { connect(false) }, matchButton())
         right.addView(label("Plug your iPhone into a USB data port.\nAllow CarPlay when your iPhone asks.", 14, MUTED).apply { gravity = Gravity.CENTER; setPadding(dp(8), dp(10), dp(8), dp(24)) })
         right.addView(button("Settings", false) { page = "settings"; render() }, matchButton())
-        right.addView(label("Make DiPlay feel right for your car.", 14, MUTED).apply { gravity = Gravity.CENTER; setPadding(0, dp(10), 0, dp(24)) })
+        right.addView(label("Make DashFlow feel right for your car.", 14, MUTED).apply { gravity = Gravity.CENTER; setPadding(0, dp(10), 0, dp(24)) })
         right.addView(label("PUBLIC PREVIEW  ·  ${version()}", 12, MUTED).apply { letterSpacing = .08f })
         if (wide) {
             // Both rows share column widths. The USB button starts at the wireless
@@ -220,11 +220,11 @@ class DiPlayActivity : ComponentActivity() {
             }.apply { isEnabled = !exportInProgress }
             card.addView(exportButton, matchButton(10, 60))
             card.addView(button("Choose save location", false) { chooseReportDestination() }, matchButton(10, 60))
-            val destination = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) "Reports save to Downloads/DiPlay. " else "Choose where to save your report. "
+            val destination = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) "Reports save to Downloads/DashFlow. " else "Choose where to save your report. "
             card.addView(label(destination + "Nothing is sent automatically. Protocol payloads and credentials are excluded.", 14, MUTED).apply { setPadding(0, dp(12), 0, 0) })
         }
         section(content, "Automatic connection", R.drawable.ic_dp_automation) { card ->
-            toggle(card, "Connect when DiPlay opens", "Use your last connection type and selected iPhone.", DiPlayPreferences.autoConnect(this)) { DiPlayPreferences.saveAutoConnect(this, it) }
+            toggle(card, "Connect when DashFlow opens", "Use your last connection type and selected iPhone.", DiPlayPreferences.autoConnect(this)) { DiPlayPreferences.saveAutoConnect(this, it) }
             toggle(card, "Open after the car starts", "Availability depends on your head unit’s startup settings.", AirPlayPersistence.loadAutoStartOnBoot(this)) { AirPlayPersistence.saveAutoStartOnBoot(this, it) }
             card.addView(button("Choose iPhone · ${DiPlayPreferences.phoneName(this)}", false) { choosePhone() }, matchButton(12, 60))
         }
@@ -311,29 +311,29 @@ class DiPlayActivity : ComponentActivity() {
             card.addView(button("Wireless connection help", false) { wirelessHelp() }, matchButton(10, 60))
         }
         section(content, "About", R.drawable.ic_dp_about) { card ->
-            card.addView(button("About DiPlay", false) { page = "about"; render() }, matchButton(0, 60))
+            card.addView(button("About DashFlow", false) { page = "about"; render() }, matchButton(0, 60))
         }
     }
 
     private fun about(content: LinearLayout) {
-        content.addView(label("DiPlay", 40, TEXT, true))
+        content.addView(label("DashFlow", 40, TEXT, true))
         content.addView(label("CarPlay, at home in your car.", 20, MUTED).apply { setPadding(0, dp(8), 0, dp(24)) })
         section(content, "Public preview · ${version()}") { card ->
             card.addView(label("An independent CarPlay receiver for Android head units. Wired and wireless connections run on the head unit, with local authentication. A standard iPhone can connect without a jailbreak, Mac, dongle or sign-in.\n\nThis preview uses an experimental accessory identity. Compatibility with every iPhone and head unit is still being tested. It is not an Apple-certified product.", 17, TEXT))
         }
         section(content, "Made possible by open source") { card ->
-            card.addView(label("Receiver based on xcertplay, licensed under GPL-3.0. DiPlay’s interface follows DiAuto’s design, licensed under AGPL-3.0.\n\nIncludes AndroidX, Bouncy Castle, JmDNS and SLF4J. Source and license notices accompany this release.\n\nCarPlay and the CarPlay icon belong to Apple Inc. DiPlay is an independent project.", 16, MUTED))
+            card.addView(label("Receiver based on xcertplay, licensed under GPL-3.0. DashFlow’s interface follows DiAuto’s design, licensed under AGPL-3.0.\n\nIncludes AndroidX, Bouncy Castle, JmDNS and SLF4J. Source and license notices accompany this release.\n\nCarPlay and the CarPlay icon belong to Apple Inc. DashFlow is an independent project.", 16, MUTED))
         }
     }
 
-    // The car hotspot link needs the hotspot on; DiPlay only checks it (turning it on needs ADB-only permission).
+    // The car hotspot link needs the hotspot on; DashFlow only checks it (turning it on needs ADB-only permission).
     private fun carHotspotOff(): Boolean =
         AirPlayPersistence.loadWirelessHotspotMode(this) == WirelessHotspotMode.MANUAL &&
             com.shilapi.xcertplay.network.CarHotspotStatus.isEnabled(this) == false
 
     private fun carHotspotOffDialog() {
         AlertDialog.Builder(this).setTitle(uiText("Car hotspot is off"))
-            .setMessage(uiText("DiPlay connects through the car hotspot “${AirPlayPersistence.loadManualHotspotSsid(this)}”. Turn it on in the car settings, then connect."))
+            .setMessage(uiText("DashFlow connects through the car hotspot “${AirPlayPersistence.loadManualHotspotSsid(this)}”. Turn it on in the car settings, then connect."))
             .setPositiveButton(uiText("Open car settings")) { _, _ -> openCarWifiSettings() }
             .setNeutralButton(uiText("Connect")) { _, _ -> connect(true) }
             .setNegativeButton(uiText("Cancel"), null).show()
@@ -376,7 +376,7 @@ class DiPlayActivity : ComponentActivity() {
             }, matchButton(12, 60))
         }
         section(content, "3 · Connect") { card ->
-            card.addView(label("Return from car settings to DiPlay, then connect. Accept the CarPlay prompt on your iPhone. A car internet plan is not required; mobile data availability depends on your phone’s network settings.", 16, MUTED))
+            card.addView(label("Return from car settings to DashFlow, then connect. Accept the CarPlay prompt on your iPhone. A car internet plan is not required; mobile data availability depends on your phone’s network settings.", 16, MUTED))
             card.addView(button("Connect phone", true) { connect(true) }, matchButton(12, 60))
         }
         section(content, "Prefer a cable?") { card ->
@@ -414,7 +414,7 @@ class DiPlayActivity : ComponentActivity() {
         }
         if (mode == WirelessHotspotMode.MANUAL) {
             parent.addView(label("Hotspot setup", 22, TEXT, true))
-            parent.addView(label("1. Open car hotspot settings, turn the hotspot on and select 5 GHz if available.\n2. Copy its name and password below exactly.\n3. Leave the car hotspot on when connecting. DiPlay sends the details over Bluetooth; your iPhone joins automatically.", 16, MUTED).apply { setPadding(0, dp(8), 0, dp(12)) })
+            parent.addView(label("1. Open car hotspot settings, turn the hotspot on and select 5 GHz if available.\n2. Copy its name and password below exactly.\n3. Leave the car hotspot on when connecting. DashFlow sends the details over Bluetooth; your iPhone joins automatically.", 16, MUTED).apply { setPadding(0, dp(8), 0, dp(12)) })
             parent.addView(button("Open car hotspot settings", false) { openCarWifiSettings() }, matchButton(0, 60))
             parent.addView(button(if (pendingCarHotspotSetup) "Save hotspot details and use this mode" else "Edit saved hotspot · ${storedSsid()}", false) {
                 askHotspotCredentials { ssid, password ->
@@ -506,7 +506,7 @@ class DiPlayActivity : ComponentActivity() {
         val command = "adb shell appops set $packageName GET_USAGE_STATS allow"
         val body = column().apply { setPadding(dp(24), dp(12), dp(24), dp(12)) }
         body.addView(label("One-time setup on this car", 20, TEXT, true))
-        body.addView(label("Usage Access lets DiPlay follow the instrument theme and map card. Only BYD cluster activity events are processed locally. This car does not provide a working permission settings page.", 15, MUTED))
+        body.addView(label("Usage Access lets DashFlow follow the instrument theme and map card. Only BYD cluster activity events are processed locally. This car does not provide a working permission settings page.", 15, MUTED))
         body.addView(label("1. Connect a computer with ADB installed to the car using your existing USB or wireless debugging connection. Approve debugging on the car if asked.\n\n2. Run this command in the computer’s terminal:", 16, TEXT))
         body.addView(label(command, 16, TEXT).apply {
             typeface = android.graphics.Typeface.MONOSPACE
@@ -515,7 +515,7 @@ class DiPlayActivity : ComponentActivity() {
         })
         body.addView(button("Copy command", false) {
             getSystemService(android.content.ClipboardManager::class.java).setPrimaryClip(
-                android.content.ClipData.newPlainText("DiPlay Usage Access", command))
+                android.content.ClipData.newPlainText("DashFlow Usage Access", command))
             toast("Copied to the car clipboard. Run the command on your computer.")
         }, matchButton(0, 56))
         body.addView(label("If ADB lists several devices, use adb -s <car-device-ID> shell appops set $packageName GET_USAGE_STATS allow. Find the ID with adb devices.", 14, MUTED))
@@ -627,7 +627,7 @@ class DiPlayActivity : ComponentActivity() {
         val devices = runCatching { adapter.bondedDevices.sortedBy { it.name ?: "" } }.getOrDefault(emptyList())
         if (devices.isEmpty()) {
             AlertDialog.Builder(this).setTitle(uiText("Pair your iPhone"))
-                .setMessage(uiText("On your iPhone, open Settings → Bluetooth and pair with the car. Then return to DiPlay and choose Connect phone."))
+                .setMessage(uiText("On your iPhone, open Settings → Bluetooth and pair with the car. Then return to DashFlow and choose Connect phone."))
                 .setPositiveButton(uiText("Open Bluetooth")) { _, _ -> openSystem(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) }
                 .setNegativeButton(uiText("Got it"), null).show(); return
         }
@@ -716,7 +716,7 @@ class DiPlayActivity : ComponentActivity() {
         }
         connectButton?.isEnabled = setupError == null
     }
-    private fun reportFileName() = "DiPlay-${SimpleDateFormat("yyyyMMdd-HHmmss-SSS", Locale.US).format(Date())}.txt"
+    private fun reportFileName() = "DashFlow-${SimpleDateFormat("yyyyMMdd-HHmmss-SSS", Locale.US).format(Date())}.txt"
 
     private fun chooseReportDestination() {
         // Some head units omit or disable DocumentsUI. Launch itself can throw, before
@@ -737,7 +737,7 @@ class DiPlayActivity : ComponentActivity() {
         Thread({
             val result = runCatching {
                 val report = buildString {
-                    appendLine("DiPlay ${version()} · private beta diagnostic report")
+                    appendLine("DashFlow ${version()} · private beta diagnostic report")
                     appendLine("Android ${Build.VERSION.RELEASE} / API ${Build.VERSION.SDK_INT}")
                     appendLine("Head unit: ${Build.MANUFACTURER} ${Build.MODEL}")
                     appendLine("Connection: ${if (AirPlayPersistence.loadWirelessEnabled(appContext)) "wireless" else "USB"}")
@@ -772,7 +772,7 @@ class DiPlayActivity : ComponentActivity() {
                 if (result.isSuccess) {
                     val savedUri = result.getOrThrow()
                     AlertDialog.Builder(this).setTitle(uiText("Diagnostic report saved"))
-                        .setMessage(uiText(if (uri == null) "Downloads/DiPlay/$fileName" else "Your report was saved to the selected location."))
+                        .setMessage(uiText(if (uri == null) "Downloads/DashFlow/$fileName" else "Your report was saved to the selected location."))
                         .setPositiveButton(uiText("Done"), null)
                         .setNeutralButton(uiText("Share")) { _, _ ->
                             runCatching {

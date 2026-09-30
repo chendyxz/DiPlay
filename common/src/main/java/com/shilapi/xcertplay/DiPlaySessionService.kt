@@ -28,7 +28,7 @@ class DiPlaySessionService : Service() {
         val stop = PendingIntent.getService(this, 1, Intent(this, DiPlaySessionService::class.java).setAction(ACTION_STOP), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notification = Notification.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_diplay_notification)
-            .setContentTitle("DiPlay")
+            .setContentTitle("DashFlow")
             .setContentText(uiText("CarPlay connection running"))
             .setContentIntent(open).setOngoing(true)
             .addAction(Notification.Action.Builder(null, uiText("Disconnect"), stop).build()).build()
@@ -48,7 +48,7 @@ class DiPlaySessionService : Service() {
         stopSelf()
     }
     companion object {
-        const val ACTION_STOP = "com.shihab.diplay.DISCONNECT"
+        const val ACTION_STOP = "com.xyz.dashflow.DISCONNECT"
         private const val CHANNEL = "diplay_connection"
     }
 }

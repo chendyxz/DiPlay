@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit
 
 /** Publishes CarPlay route arrows, distance and street to BYD's native windshield HUD. */
 internal object BydHudBridge {
-    private const val TAG = "DiPlay-BYD-HUD"
+    private const val TAG = "DashFlow-BYD-HUD"
     private const val SOMEIP_PACKAGE = "com.ts.car.someip.service"
     private const val SOMEIP_CLASS = "com.ts.car.someip.service.manager.SomeIpServerService"
     private const val SOMEIP_ACTION = "com.ts.car.someip.SomeIpServerService"
@@ -95,7 +95,7 @@ internal object BydHudBridge {
         }
     }
 
-    /** Clears the HUD immediately; called when DiPlay is about to be killed. */
+    /** Clears the HUD immediately; called when DashFlow is about to be killed. */
     fun clearNow() = clear()
 
     fun clear() = synchronized(lock) {

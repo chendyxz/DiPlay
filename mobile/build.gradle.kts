@@ -21,7 +21,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.shihab.diplay"
+        applicationId = "com.xyz.dashflow"
         minSdk = 28
         targetSdk = 37
         versionCode = 25

@@ -10,7 +10,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.shilapi.xcertplay"
+        applicationId = "com.xyz.dashflow"
         minSdk = 28
         targetSdk = 37
         versionCode = 1201

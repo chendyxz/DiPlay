@@ -24,11 +24,11 @@ class UiStringsTest {
                 "zh",
             ),
         )
-        assertEquals("返回 DiPlay", localizedUiText("Back to DiPlay", "zh"))
+        assertEquals("返回 DashFlow", localizedUiText("Back to DashFlow", "zh"))
         assertEquals(
-            "在 CarPlay 中，三指向下滑动即可打开 DiPlay 设置。",
+            "在 CarPlay 中，三指向下滑动即可打开 DashFlow 设置。",
             localizedUiText(
-                "In CarPlay, swipe down with three fingers to open DiPlay settings.",
+                "In CarPlay, swipe down with three fingers to open DashFlow settings.",
                 "zh",
             ),
         )

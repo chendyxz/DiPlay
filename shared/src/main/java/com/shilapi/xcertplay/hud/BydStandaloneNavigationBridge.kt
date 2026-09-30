@@ -43,7 +43,7 @@ internal object BydStandaloneNavigationBridge {
             if (frame == null) output?.clear()
             else output?.update(frame.icon, frame.roundaboutExit, frame.distanceMeters, frame.road)
         } catch (error: Exception) {
-            Log.w("DiPlay-Standalone", "HUD update/cleanup will retry", error)
+            Log.w("DashFlow-Standalone", "HUD update/cleanup will retry", error)
         }
     }
 }

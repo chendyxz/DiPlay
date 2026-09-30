@@ -1,4 +1,4 @@
-# Building DiPlay
+# Building DashFlow
 
 Requirements: JDK 25, Android SDK 37, NDK 28.2.13676358 and the included Gradle wrapper.
 
@@ -36,4 +36,4 @@ This task refuses missing or empty runtime inputs. `assembleDebug` remains an id
 source/CI build when neither explicit asset input is present; do not install that output as a
 standalone car-test package. Before delivery, verify both `assets/offline-mfi/identity.pk8`
 and `assets/offline-mfi/certificate.p7b` in the APK against the selected local inputs.
-Update the existing test app without uninstalling it to preserve its settings.
+The debug package is `com.xyz.dashflow.hudtest`; release uses `com.xyz.dashflow`. Both install separately from the old DiPlay packages, without migrating their settings. Future updates with the same package and signing key can preserve settings.
