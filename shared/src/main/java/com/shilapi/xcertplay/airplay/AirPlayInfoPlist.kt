@@ -16,6 +16,7 @@ object AirPlayInfoPlist {
     private const val DISPLAY_FEATURE_HIGH_FIDELITY_TOUCH = 0x08
     private const val CARPLAY_FEATURES = 0x615653aee2L
     private const val CARPLAY_AUDIO_FEATURES = 0x10004540a00L
+    private const val SCREEN_MULTI_CODEC_FEATURE = 1L shl 42
     private val CARPLAY_FEATURES_NO_AUDIO = CARPLAY_FEATURES and CARPLAY_AUDIO_FEATURES.inv()
 
     private const val RESOURCE_SCREEN = 1
@@ -30,9 +31,11 @@ object AirPlayInfoPlist {
         )
         config.cluster?.let { displays.add(displayEntry(it, STREAM_TYPE_ALT_SCREEN, ALT_UUID)) }
 
+        val features = (if (config.disableAudioOutput) CARPLAY_FEATURES_NO_AUDIO else CARPLAY_FEATURES) or
+            (if (config.hevc) SCREEN_MULTI_CODEC_FEATURE else 0L)
         val info = linkedMapOf<String, Any?>(
             "sourceVersion" to config.sourceVersion,
-            "features" to if (config.disableAudioOutput) CARPLAY_FEATURES_NO_AUDIO else CARPLAY_FEATURES,
+            "features" to features,
             "statusFlags" to 4L,
             "model" to config.model,
             "manufacturer" to config.manufacturer,

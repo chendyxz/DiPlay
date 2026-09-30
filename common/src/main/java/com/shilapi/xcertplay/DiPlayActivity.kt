@@ -36,6 +36,13 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+internal fun shouldAutomaticallyOpenProjection(
+    sessionRunning: Boolean,
+    setupReady: Boolean,
+    homePage: Boolean,
+    automaticEntry: Boolean,
+): Boolean = sessionRunning && setupReady && homePage && automaticEntry
+
 /** DiAuto's visual language, with a connection flow for an independent CarPlay receiver. */
 class DiPlayActivity : ComponentActivity() {
     private val handler = Handler(Looper.getMainLooper())
@@ -48,6 +55,7 @@ class DiPlayActivity : ComponentActivity() {
     private var lastRunning: Boolean? = null
     private var pendingWireless = false
     private var initialLaunch = true
+    private var automaticProjectionEntry = true
     private var notificationTransport = true
     private var exportInProgress = false
     private var exportButton: Button? = null
@@ -63,6 +71,23 @@ class DiPlayActivity : ComponentActivity() {
     private val export = registerForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
         if (uri != null) exportDiagnostics(uri)
     }
+    private val returnIconCrop =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == RESULT_OK) {
+                render()
+                reconnectForReturnButton()
+            }
+        }
+    private val returnIconPicker =
+        registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            if (uri != null) {
+                returnIconCrop.launch(
+                    Intent(this, ImageCropActivity::class.java)
+                        .setData(uri)
+                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
+                )
+            }
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -79,6 +104,8 @@ class DiPlayActivity : ComponentActivity() {
         }
         pendingCarHotspotSetup = savedInstanceState?.getBoolean("pending_car_hotspot") ?: false
         page = savedInstanceState?.getString("page") ?: intent.getStringExtra("page") ?: "home"
+        automaticProjectionEntry = savedInstanceState?.getBoolean("automatic_projection_entry")
+            ?: (intent.getStringExtra("page") == null)
         render()
         handleWirelessRecovery()
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -91,10 +118,12 @@ class DiPlayActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent); setIntent(intent)
-        page = intent.getStringExtra("page") ?: "home"; render()
+        val requestedPage = intent.getStringExtra("page")
+        automaticProjectionEntry = requestedPage == null
+        page = requestedPage ?: "home"; render()
         handleWirelessRecovery()
     }
-    override fun onSaveInstanceState(outState: Bundle) { outState.putString("page", page); outState.putBoolean("pending_car_hotspot", pendingCarHotspotSetup); super.onSaveInstanceState(outState) }
+    override fun onSaveInstanceState(outState: Bundle) { outState.putString("page", page); outState.putBoolean("pending_car_hotspot", pendingCarHotspotSetup); outState.putBoolean("automatic_projection_entry", automaticProjectionEntry); super.onSaveInstanceState(outState) }
     override fun onConfigurationChanged(newConfig: Configuration) { super.onConfigurationChanged(newConfig); render() }
     override fun onResume() {
         super.onResume(); handler.removeCallbacks(tick); handler.post(tick)
@@ -105,6 +134,17 @@ class DiPlayActivity : ComponentActivity() {
             if (setupError == null && !CarPlayBackgroundSession.hasSession() &&
                 DiPlayPreferences.autoConnect(this) && intent.getStringExtra("page") == null) {
                 handler.post { connect(AirPlayPersistence.loadWirelessEnabled(this)) }
+            }
+        }
+        if (shouldAutomaticallyOpenProjection(
+                sessionRunning = CarPlayBackgroundSession.hasSession(),
+                setupReady = setupError == null,
+                homePage = page == "home",
+                automaticEntry = automaticProjectionEntry,
+            )
+        ) {
+            handler.post {
+                if (!isFinishing && CarPlayBackgroundSession.hasSession()) openProjection()
             }
         }
     }
@@ -241,6 +281,46 @@ class DiPlayActivity : ComponentActivity() {
             toggle(card, "Right-hand drive", "Place CarPlay’s controls closer to the driver.", AirPlayPersistence.loadRightHandDrive(this)) { AirPlayPersistence.saveRightHandDrive(this, it) }
             toggle(card, "Full screen", "Hide the car’s system bars while CarPlay is open.", AirPlayPersistence.loadHideTopBar(this) && AirPlayPersistence.loadHideBottomBar(this)) {
                 AirPlayPersistence.saveHideTopBar(this, it); AirPlayPersistence.saveHideBottomBar(this, it)
+            }
+        }
+        section(content, "CarPlay return button") { card ->
+            card.addView(
+                label(
+                    "This button appears in CarPlay and returns to the car home screen.",
+                    15,
+                    MUTED,
+                ).apply { setPadding(0, 0, 0, dp(12)) },
+            )
+            card.addView(
+                button(AirPlayPersistence.loadOemLabel(this), false) {
+                    textInput(
+                        "Button text",
+                        AirPlayPersistence.loadOemLabel(this),
+                        secret = false,
+                    ) { value ->
+                        AirPlayPersistence.saveOemLabel(this, value)
+                        render()
+                        reconnectForReturnButton()
+                    }
+                },
+                matchButton(0, 60),
+            )
+            val customIcon = AirPlayPersistence.loadCustomAirPlayIconFile(this) != null
+            card.addView(
+                button(if (customIcon) "Change return icon" else "Choose return icon", false) {
+                    returnIconPicker.launch("image/*")
+                },
+                matchButton(10, 60),
+            )
+            if (customIcon) {
+                card.addView(
+                    button("Use default return icon", false) {
+                        AirPlayPersistence.clearCustomAirPlayIcon(this)
+                        render()
+                        reconnectForReturnButton()
+                    },
+                    matchButton(10, 60),
+                )
             }
         }
         if (com.shilapi.xcertplay.hud.BydOutputSettings.available(this)) section(content, "BYD navigation", R.drawable.ic_dp_navigation) { card ->
@@ -547,6 +627,14 @@ class DiPlayActivity : ComponentActivity() {
     // its current link. The position choices need no call: "Apply and reconnect" already does it.
     private fun reconnectForClusterMap() {
         if (CarPlayBackgroundSession.hasSession()) connect(AirPlayPersistence.loadWirelessEnabled(this))
+    }
+
+    private fun reconnectForReturnButton() {
+        if (CarPlayBackgroundSession.hasSession()) {
+            connect(AirPlayPersistence.loadWirelessEnabled(this))
+        } else {
+            toast("Saved for your next connection")
+        }
     }
 
     private fun applyWirelessLink(mode: WirelessHotspotMode) {

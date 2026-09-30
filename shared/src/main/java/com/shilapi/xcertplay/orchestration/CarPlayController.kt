@@ -123,6 +123,11 @@ internal fun isWirelessHandoffInProgress(
     sessionActive: Boolean,
 ): Boolean = handoffRequested || tunnelActive || sessionActive
 
+internal fun shouldFailWirelessHandoffTimeout(
+    wirelessActive: Boolean,
+    sessionActive: Boolean,
+): Boolean = !wirelessActive && !sessionActive
+
 /**
  * Wires the complete wired or wireless CarPlay path: MFi coprocessor discovery, iPhone bring-up,
  * iAP2 control, transport setup, and the AirPlay media/input sessions.
@@ -1142,7 +1147,10 @@ class CarPlayController(
                     phase != Phase.WIRELESS ||
                     generation != wirelessGeneration.get() ||
                     !wirelessHandoffRequested.get() ||
-                    wirelessActiveReported.get()
+                    !shouldFailWirelessHandoffTimeout(
+                        wirelessActive = wirelessActiveReported.get(),
+                        sessionActive = activeSession != null,
+                    )
                 ) {
                     return@postDelayed
                 }
@@ -1153,7 +1161,10 @@ class CarPlayController(
                             closed ||
                             phase != Phase.WIRELESS ||
                             generation != wirelessGeneration.get() ||
-                            wirelessActiveReported.get()
+                            !shouldFailWirelessHandoffTimeout(
+                                wirelessActive = wirelessActiveReported.get(),
+                                sessionActive = activeSession != null,
+                            )
                         ) {
                             return@Thread
                         }

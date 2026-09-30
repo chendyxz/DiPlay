@@ -36,7 +36,7 @@ class Iap2WirelessControlClient(
             "timeoutMillis must be in 1..$MAX_TIMEOUT_MILLIS or NO_TIMEOUT_MILLIS"
         }
 
-        val deadlineNanos = if (timeoutMillis == NO_TIMEOUT_MILLIS) {
+        var deadlineNanos = if (timeoutMillis == NO_TIMEOUT_MILLIS) {
             Long.MAX_VALUE
         } else {
             deadlineAfter(timeoutMillis)
@@ -48,6 +48,10 @@ class Iap2WirelessControlClient(
         mfi.run(session, requireRemaining(deadlineNanos), onProgress)
         stage = Iap2WirelessControlStage.AUTHENTICATED
         onProgress("iap2 authentication accepted")
+
+        // The timeout protects bring-up only. Once authenticated, this control channel must stay
+        // alive for the full CarPlay session, including long periods with no incoming frames.
+        deadlineNanos = Long.MAX_VALUE
 
         for (subscription in Iap2WiredControlClient.subscriptions()) {
             send(subscription, deadlineNanos)

@@ -26,4 +26,24 @@ class WirelessHandoffTest {
             ),
         )
     }
+
+    @Test
+    fun activeAirPlaySessionSurvivesMissingTunnelAtHandoffTimeout() {
+        assertFalse(
+            shouldFailWirelessHandoffTimeout(
+                wirelessActive = false,
+                sessionActive = true,
+            ),
+        )
+    }
+
+    @Test
+    fun handoffTimeoutFailsWhenNeitherTunnelNorAirPlayIsActive() {
+        assertTrue(
+            shouldFailWirelessHandoffTimeout(
+                wirelessActive = false,
+                sessionActive = false,
+            ),
+        )
+    }
 }

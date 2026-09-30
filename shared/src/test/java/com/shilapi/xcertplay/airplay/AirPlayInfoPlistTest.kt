@@ -45,7 +45,10 @@ class AirPlayInfoPlistTest {
         )
 
         assertFalse(AirPlayInfoPlist.build(base).containsKey("hevcInfo"))
-        assertTrue(AirPlayInfoPlist.build(base.copy(hevc = true)).containsKey("hevcInfo"))
+        val hevcInfo = AirPlayInfoPlist.build(base.copy(hevc = true))
+        assertTrue(hevcInfo.containsKey("hevcInfo"))
+        assertEquals(0L, (AirPlayInfoPlist.build(base)["features"] as Long) and (1L shl 42))
+        assertTrue(((hevcInfo["features"] as Long) and (1L shl 42)) != 0L)
     }
 
     @Test

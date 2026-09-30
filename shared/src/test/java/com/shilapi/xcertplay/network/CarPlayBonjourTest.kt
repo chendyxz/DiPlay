@@ -50,6 +50,13 @@ class CarPlayBonjourTest {
     }
 
     @Test
+    fun hevcAdvertisesScreenMultiCodecFeature() {
+        val records = CarPlayBonjourProtocol.airPlayTxtRecords(config.copy(hevc = true), identity)
+
+        assertEquals("0x44540380,0x461", records["features"])
+    }
+
+    @Test
     fun connectProbeRequestMatchesExactRequestLineAndHeaders() {
         assertEquals(
             "GET /ctrl-int/1/connect HTTP/1.1\r\n" +

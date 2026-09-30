@@ -570,6 +570,7 @@ class CarPlayHostActivity : ComponentActivity() {
         ensureClusterPresentation()
         maybeStartCarPlay()
         applyFullscreenMode()
+        window.decorView.post { if (!isFinishing) applyFullscreenMode() }
     }
 
     // Experimental: the CarPlay instrument-cluster stream on the BYD cluster projection display.
@@ -3538,6 +3539,15 @@ class CarPlayHostActivity : ComponentActivity() {
         val hideTop = hideTopBar
         val hideBottom = hideBottomBar
         WindowCompat.setDecorFitsSystemWindows(window, !(hideTop && hideBottom))
+        if (hideTop) {
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN)
+        } else {
+            window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN)
+        }
+        window.decorView.systemUiVisibility =
+            (if (hideTop) View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN else 0) or
+                (if (hideBottom) View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION else 0) or
+                (if (hideTop || hideBottom) View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or View.SYSTEM_UI_FLAG_LAYOUT_STABLE else 0)
         val controller = WindowInsetsControllerCompat(window, window.decorView)
         if (hideTop) {
             controller.hide(WindowInsetsCompat.Type.statusBars())

@@ -181,6 +181,7 @@ class ImageCropActivity : Activity() {
 
     private class SquareCropView(context: android.content.Context) : View(context) {
         private val imagePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+        private val transparencyPreviewPaint = Paint().apply { color = Color.rgb(189, 189, 189) }
         private val dimPaint = Paint().apply { color = Color.argb(145, 0, 0, 0) }
         private val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.WHITE
@@ -227,6 +228,7 @@ class ImageCropActivity : Activity() {
 
             val save = canvas.save()
             canvas.clipRect(viewport)
+            canvas.drawRect(viewport, transparencyPreviewPaint)
             canvas.drawBitmap(source, matrix, imagePaint)
             canvas.restoreToCount(save)
 
