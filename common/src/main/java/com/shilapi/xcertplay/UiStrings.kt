@@ -58,6 +58,8 @@ private val UI_ZH = mapOf(
     "Looking for your paired iPhone…" to "正在查找已配对的 iPhone…",
     "Reconnecting to your iPhone…" to "正在重新连接 iPhone…",
     "Opening CarPlay…" to "正在打开 CarPlay…",
+    "Waiting for CarPlay video…" to "正在等待 iPhone 的 CarPlay 画面…",
+    "Your iPhone didn’t start CarPlay over Wi-Fi. Retrying…" to "iPhone 未通过 Wi-Fi 启动 CarPlay，正在重试…",
     "Car home" to "车机主页", "Back" to "返回", "YOUR PHONE. YOUR DRIVE." to "掌中旋律，驾驭随心",
     "A familiar drive." to "悦享每一程", "Your maps, music and conversations.\nCarPlay, right here on your car display." to "导航指路，音乐相伴，通话随行。\n让熟悉的 CarPlay，跃然车屏。",
     "WIRELESS CARPLAY" to "无线 CARPLAY", "Ready when you are" to "准备就绪，随时出发", "Connect phone" to "连接手机",

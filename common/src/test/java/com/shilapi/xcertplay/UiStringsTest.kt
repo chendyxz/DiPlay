@@ -18,6 +18,14 @@ class UiStringsTest {
             localizedUiText("Opening CarPlay…", "zh"),
         )
         assertEquals(
+            "正在等待 iPhone 的 CarPlay 画面…",
+            localizedUiText("Waiting for CarPlay video…", "zh"),
+        )
+        assertEquals(
+            "iPhone 未通过 Wi-Fi 启动 CarPlay，正在重试…",
+            localizedUiText("Your iPhone didn’t start CarPlay over Wi-Fi. Retrying…", "zh"),
+        )
+        assertEquals(
             "请将 iPhone 放在附近，并开启蓝牙和 Wi-Fi。\n在 iPhone 提示时允许 CarPlay。",
             localizedUiText(
                 "Keep your iPhone nearby with Bluetooth and Wi-Fi on.\nAllow CarPlay if your iPhone asks.",

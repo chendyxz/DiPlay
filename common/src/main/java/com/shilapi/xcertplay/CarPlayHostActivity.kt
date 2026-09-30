@@ -3471,6 +3471,8 @@ class CarPlayHostActivity : ComponentActivity() {
     }
 
     private fun friendlyStage(message: String): String = when {
+        message.contains("Wireless CarPlay startup timed out", true) -> "Your iPhone didn’t start CarPlay over Wi-Fi. Retrying…"
+        message == "Waiting for CarPlay video" -> "Waiting for CarPlay video…"
         message.contains("Turn on Wi-Fi", true) -> "Turn on Wi-Fi in the head unit’s settings to connect."
         message.contains("Allow precise Location", true) -> "Allow precise Location for DashFlow in the head unit’s app permissions."
         message.contains("Allow Nearby devices", true) -> "Allow Nearby devices for DashFlow in the head unit’s app permissions."
@@ -3576,7 +3578,7 @@ class CarPlayHostActivity : ComponentActivity() {
                 "channel ${if (channel == 0) "auto" else channel}"
         CarPlayStatus.WaitingForPairedIphone -> "Waiting for paired iPhone"
         CarPlayStatus.ConnectingBluetooth -> "Connecting Bluetooth"
-        CarPlayStatus.RunningWireless -> "Wireless CarPlay control running"
+        CarPlayStatus.RunningWireless -> "Waiting for CarPlay video"
         CarPlayStatus.WirelessActive -> "Wireless CarPlay active"
         CarPlayStatus.DiscoveringIphone -> "Discovering iPhone"
         CarPlayStatus.WaitingForIphone -> "Waiting for iPhone over USB"

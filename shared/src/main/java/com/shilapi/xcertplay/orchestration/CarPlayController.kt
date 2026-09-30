@@ -206,6 +206,7 @@ class CarPlayController(
     private val wirelessHandoffRequested = AtomicBoolean(false)
     private val wirelessTunnelReady = AtomicBoolean(false)
     private val wirelessActiveReported = AtomicBoolean(false)
+    private val wirelessVideoRendered = AtomicBoolean(false)
     private val wirelessGeneration = AtomicInteger(0)
     private val wirelessConnectionProof = WirelessConnectionProof<AirPlaySession>()
 
@@ -957,6 +958,7 @@ class CarPlayController(
                 endpoint = endpoint,
                 timeoutMillis = controlLoopTimeoutMillis(),
                 locationProvider = locationProvider,
+                onReady = { armWirelessStartupWatchdog(generation) },
                 onIncoming = ::onRouteFrame,
                 onProgress = ::debugLog,
             )
@@ -1082,6 +1084,7 @@ class CarPlayController(
         object : AirPlaySessionListener by sessionListener {
             override fun onSessionActive(session: AirPlaySession) {
                 if (isStaleWirelessRun(generation)) return
+                if (activeSession !== session) wirelessVideoRendered.set(false)
                 wirelessConnectionProof.activate(generation, session)
                 sessionListener.onSessionActive(session)
             }
@@ -1094,6 +1097,7 @@ class CarPlayController(
 
             override fun onVideoFrameRendered(session: AirPlaySession) {
                 if (isStaleWirelessRun(generation) || activeSession !== session) return
+                wirelessVideoRendered.set(true)
                 wirelessConnectionProof.rendered(generation, session)
             }
         }
@@ -1137,6 +1141,20 @@ class CarPlayController(
             isDaemon = true
             start()
         }
+    }
+
+    private fun armWirelessStartupWatchdog(generation: Int) {
+        if (isStaleWirelessRun(generation)) return
+        mainHandler.postDelayed(
+            {
+                if (isStaleWirelessRun(generation) || wirelessVideoRendered.get()) return@postDelayed
+                val waitingFor = if (activeSession == null) "the iPhone's Wi-Fi AirPlay session" else "the first video frame"
+                val message = "Wireless CarPlay startup timed out waiting for $waitingFor"
+                debugLog(message)
+                fail(IOException(message))
+            },
+            WIRELESS_STARTUP_TIMEOUT_MILLIS,
+        )
     }
 
     private fun armWirelessHandoffWatchdog(generation: Int) {
@@ -1700,6 +1718,7 @@ class CarPlayController(
         wirelessHandoffRequested.set(false)
         wirelessTunnelReady.set(false)
         wirelessActiveReported.set(false)
+        wirelessVideoRendered.set(false)
 
         if (service != null) closeBestEffort("AirPlay service") { service.detach() }
     }
@@ -2002,6 +2021,7 @@ class CarPlayController(
         private const val PERMISSION_POLL_TIMEOUT_MILLIS = 120_000L
         private const val DEVICE_AVAILABILITY_POLL_INTERVAL_MILLIS = 2_000L
         private const val WIRELESS_HANDOFF_TIMEOUT_MILLIS = 45_000L
+        private const val WIRELESS_STARTUP_TIMEOUT_MILLIS = 45_000L
         private const val RFCOMM_CONNECT_TIMEOUT_MILLIS = 15_000L
         private const val MAXIMUM_REENUMERATION_ATTEMPTS = 2
         private const val EXECUTOR_CLOSE_TIMEOUT_MILLIS = 2_000L
