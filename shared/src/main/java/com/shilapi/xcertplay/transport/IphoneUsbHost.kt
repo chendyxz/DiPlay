@@ -5,7 +5,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.hardware.usb.UsbConfiguration
 import android.hardware.usb.UsbConstants
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbDeviceConnection
@@ -239,23 +238,29 @@ class IphoneUsbHost(
             ?: throw IphoneUsbException.DeviceUnavailable("UsbManager could not open the iPhone")
         var claimedInterface: UsbInterface? = null
         try {
-            val configuration = IphoneCarPlayConfiguration.find(device)
-                ?: throw IphoneUsbException.Protocol(
-                    "Re-enumerated iPhone exposes no USBMUX CarPlay configuration",
-                )
-            if (!connection.setConfiguration(configuration)) {
-                Log.w(
-                    IphoneCarPlayConfiguration.TAG,
-                    "setConfiguration ${configuration.id} reported failure; claiming anyway",
-                )
+            val usbMux = if (Build.VERSION.SDK_INT < 21) {
+                val legacy = LegacyUsbConfiguration.find(connection, device)
+                    ?: throw IphoneUsbException.Protocol("iPhone exposes no CarPlay USB configuration")
+                if (connection.controlTransfer(0, 9, legacy.descriptor.id, 0, null, 0,
+                        CONTROL_TRANSFER_TIMEOUT_MILLIS) < 0) {
+                    throw IphoneUsbException.Protocol("Could not select the CarPlay USB configuration")
+                }
+                legacy.usbInterface(checkNotNull(legacy.descriptor.usbMux))
+            } else {
+                val configuration = IphoneCarPlayConfiguration.find(device)
+                    ?: throw IphoneUsbException.Protocol("Re-enumerated iPhone exposes no USBMUX CarPlay configuration")
+                if (!connection.setConfiguration(configuration)) {
+                    Log.w(IphoneCarPlayConfiguration.TAG,
+                        "setConfiguration ${configuration.id} reported failure; claiming anyway")
+                }
+                IphoneCarPlayConfiguration.usbMuxInterface(configuration)
+                    ?: throw IphoneUsbException.Protocol("CarPlay configuration exposes no USBMUX interface")
             }
-            val usbMux = IphoneCarPlayConfiguration.usbMuxInterface(configuration)
-                ?: throw IphoneUsbException.Protocol("CarPlay configuration exposes no USBMUX interface")
             val endpoints = IphoneCarPlayConfiguration.usbMuxEndpoints(usbMux)
                 ?: throw IphoneUsbException.Protocol("USBMUX interface exposes no bulk endpoint pair")
             Log.i(
                 IphoneCarPlayConfiguration.TAG,
-                "usbmux iface=${usbMux.id} alt=${usbMux.alternateSetting} " +
+                "usbmux iface=${usbMux.id} alt=${if (Build.VERSION.SDK_INT >= 21) usbMux.alternateSetting else 0} " +
                     "out=0x${endpoints.first.address.toString(16)} in=0x${endpoints.second.address.toString(16)}",
             )
             if (!connection.claimInterface(usbMux, true)) {
@@ -351,6 +356,13 @@ class Iap2UsbSession internal constructor(
     fun read(timeoutMillis: Long): ByteArray? = synchronized(readLock) {
         checkOpen()
         require(timeoutMillis > 0) { "timeoutMillis must be positive" }
+        if (Build.VERSION.SDK_INT < 26) {
+            val buffer = ByteArray(16 * 1024)
+            val count = connection.bulkTransfer(inEndpoint, buffer, buffer.size,
+                timeoutMillis.coerceAtMost(Int.MAX_VALUE.toLong()).toInt())
+            checkOpen()
+            return@synchronized if (count > 0) buffer.copyOf(count) else null
+        }
         val request = UsbRequest()
         var initialized = false
         try {
@@ -414,6 +426,7 @@ class Iap2UsbSession internal constructor(
         if (closed) throw IphoneUsbException.DeviceUnavailable("USBMUX session is closed")
     }
 
+    @androidx.annotation.RequiresApi(26)
     private fun drainCancelledRead(request: UsbRequest) {
         if (!request.cancel()) {
             throw failSession("Android could not cancel timed out USBMUX read request")

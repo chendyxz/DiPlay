@@ -53,7 +53,7 @@ internal class OpusEncoder(bitrate: Int) : Closeable {
             return emptyList()
         }
         if (inputIndex >= 0) {
-            val input = codec.getInputBuffer(inputIndex)
+            val input = codec.compatInputBuffer(inputIndex)
             if (input == null || pcm.size > input.remaining()) {
                 codec.queueInputBuffer(inputIndex, 0, 0, presentationTimeUs, 0)
             } else {
@@ -85,12 +85,13 @@ internal class OpusEncoder(bitrate: Int) : Closeable {
             when {
                 index == MediaCodec.INFO_TRY_AGAIN_LATER -> return output
                 index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> continue
+                index == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED -> continue
                 index >= 0 -> {
                     if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG != 0) {
                         codec.releaseOutputBuffer(index, false)
                         continue
                     }
-                    val buffer = codec.getOutputBuffer(index)
+                    val buffer = codec.compatOutputBuffer(index)
                     if (buffer != null && bufferInfo.size > 0) {
                         val bytes = ByteArray(bufferInfo.size)
                         buffer.position(bufferInfo.offset)

@@ -24,6 +24,16 @@ class AudioBufferProgressTest {
         }
     }
 
+    @Test fun legacyAndroidWithoutUnderrunCounterUsesActualPlaybackProgress() {
+        val buffer = AudioBufferProgress(4)
+        buffer.written(4000)
+        assertFalse(buffer.shouldRebuffer("media", true, null, true, 999))
+        assertFalse(buffer.shouldRebuffer("media", true, null, false, 1000))
+        assertTrue(buffer.shouldRebuffer("media", true, null, true, 1000))
+        assertFalse(buffer.shouldRebuffer("media", false, null, true, 1000))
+        assertFalse(buffer.shouldRebuffer("telephony", true, null, true, 1000))
+    }
+
     @Test fun unsignedPlaybackHeadWrapKeepsQueuedAudio() {
         val buffer = AudioBufferProgress(2)
         repeat(8) { buffer.written(1_073_741_824) }

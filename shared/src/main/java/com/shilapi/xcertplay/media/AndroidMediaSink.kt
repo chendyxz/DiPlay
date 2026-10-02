@@ -345,7 +345,7 @@ private class VideoDecoder(
             return
         }
         val codec = decoder
-        if (codec != null) {
+        if (codec != null && Build.VERSION.SDK_INT >= 23) {
             try {
                 codec.setOutputSurface(surface)
                 Log.i(TAG, "video decoder output surface updated")
@@ -382,7 +382,7 @@ private class VideoDecoder(
             dequeue = { codec.dequeueInputBuffer(INPUT_TIMEOUT_US) },
         )
         if (index < 0) { recover("video decoder input stalled"); return }
-        val input = checkNotNull(codec.getInputBuffer(index)) { "Decoder input buffer unavailable" }
+        val input = checkNotNull(codec.compatInputBuffer(index)) { "Decoder input buffer unavailable" }
         input.clear()
         if (annexB.size <= input.remaining()) {
             input.put(annexB)
@@ -532,6 +532,9 @@ private class AudioRenderer(
     private var underrunsAtPlaybackStart = 0
     private var lastPcmWriteNs = 0L
     private var rebufferCount = 0
+    private val musicConcealer = if (format.audioType == "media" && format.codec == AudioCodecKind.AAC_LC)
+        MusicPacketConcealer(format.sampleRate, format.channels) else null
+    private val writeMusicPcm: (ByteArray, Int) -> Unit = { data, size -> writePcm(data, 0, size) }
     private val thread = Thread(::run, "carplay-audio").apply { isDaemon = true }
 
     fun start() {
@@ -637,7 +640,11 @@ private class AudioRenderer(
         val plan = MediaAudioBuffer.plan(format.audioType, format.sampleRate, format.channels, minBuffer, mediaBufferMillis)
         val frameBytes = if (format.channels >= 2) 4 else 2
         bytesPerSecond = format.sampleRate * frameBytes
-        val built = AudioTrack.Builder()
+        val built = if (Build.VERSION.SDK_INT < 23) {
+            @Suppress("DEPRECATION")
+            AudioTrack(legacyAudioStream(format.audioType), format.sampleRate, channelMask,
+                encoding, plan.trackBufferBytes, AudioTrack.MODE_STREAM)
+        } else AudioTrack.Builder()
             .setAudioAttributes(audioAttributes())
             .setAudioFormat(
                 AndroidAudioFormat.Builder()
@@ -650,7 +657,7 @@ private class AudioRenderer(
             .setTransferMode(AudioTrack.MODE_STREAM)
             .build()
         track = built
-        val capacityBytes = built.bufferSizeInFrames * frameBytes
+        val capacityBytes = if (Build.VERSION.SDK_INT >= 23) built.bufferSizeInFrames * frameBytes else plan.trackBufferBytes
         startThresholdBytes = MediaAudioBuffer.startBytesFor(plan.startBytes, capacityBytes, PREBUFFER_WRITE_CHUNK_BYTES)
         report("Audio: ready audioType=${format.audioType} codec=${format.codec} " +
             "rate=${format.sampleRate} channels=${format.channels} " +
@@ -672,6 +679,7 @@ private class AudioRenderer(
         return byteArrayOf((value ushr 8).toByte(), value.toByte())
     }
 
+    @androidx.annotation.RequiresApi(23)
     private fun audioAttributes(): AudioAttributes {
         val mode = if (advancedAudioChannelMapping) {
             AudioChannelMappingMode.AUTOMOTIVE_BUS
@@ -795,7 +803,7 @@ private class AudioRenderer(
             }
             return
         }
-        val input = codec.getInputBuffer(index) ?: return
+        val input = codec.compatInputBuffer(index) ?: return
         input.clear()
         if (payload.size <= input.remaining()) {
             input.put(payload)
@@ -823,6 +831,7 @@ private class AudioRenderer(
             when {
                 index == MediaCodec.INFO_TRY_AGAIN_LATER -> return
                 index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> Unit
+                index == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED -> Unit
                 index >= 0 -> {
                     val size = info.size
                     if (size > 0) {
@@ -837,13 +846,15 @@ private class AudioRenderer(
                         }
                     }
                     if (size > 0) {
-                        val output = codec.getOutputBuffer(index)
+                        val output = codec.compatOutputBuffer(index)
                         if (output != null) {
                             if (size > pcm.size) pcm = ByteArray(size)
                             output.position(info.offset)
                             output.limit(info.offset + size)
                             output.get(pcm, 0, size)
-                            writePcm(pcm, 0, size)
+                            val plc = musicConcealer
+                            if (plc != null) plc.render(pcm, size, info.presentationTimeUs, writeMusicPcm)
+                            else writePcm(pcm, 0, size)
                         }
                     }
                     codec.releaseOutputBuffer(index, false)
@@ -877,7 +888,9 @@ private class AudioRenderer(
                 minOf(length - written, PREBUFFER_WRITE_CHUNK_BYTES)
             }
             val writeStarted = System.nanoTime()
-            val count = track.write(data, offset + written, writeLength, AudioTrack.WRITE_BLOCKING)
+            val count = if (Build.VERSION.SDK_INT >= 23) {
+                track.write(data, offset + written, writeLength, AudioTrack.WRITE_BLOCKING)
+            } else track.write(data, offset + written, writeLength)
             maxWriteMs = maxOf(maxWriteMs, (System.nanoTime() - writeStarted) / 1_000_000L)
             if (count <= 0) break
             written += count
@@ -894,7 +907,7 @@ private class AudioRenderer(
     }
 
     private fun startPlayback(track: AudioTrack) {
-        underrunsAtPlaybackStart = track.underrunCount
+        underrunsAtPlaybackStart = if (Build.VERSION.SDK_INT >= 24) track.underrunCount else 0
         track.play()
         playbackStarted = true
     }
@@ -902,7 +915,7 @@ private class AudioRenderer(
     private fun maintainPlaybackBuffer() {
         val track = track ?: return
         if (bufferProgress.shouldRebuffer(format.audioType, playbackStarted,
-                track.underrunCount > underrunsAtPlaybackStart, queue.isEmpty(), track.playbackHeadPosition)) {
+                if (Build.VERSION.SDK_INT >= 24) track.underrunCount > underrunsAtPlaybackStart else null, queue.isEmpty(), track.playbackHeadPosition)) {
             // The hardware buffer has actually drained. Pause without flushing or discarding PCM,
             // then use the configured start threshold again when music resumes.
             track.pause()
@@ -922,13 +935,15 @@ private class AudioRenderer(
         val now = System.nanoTime()
         if (statsWindowStartNs == 0L) statsWindowStartNs = now
         if (!force && now - statsWindowStartNs < STATS_WINDOW_NS) return
-        val underruns = track?.underrunCount ?: 0
+        val underruns = if (Build.VERSION.SDK_INT >= 24) track?.underrunCount ?: 0 else 0
         val lastRx = lastArrivalNs.get()
         val line = "audio stats audioType=${format.audioType} codec=${format.codec} rx=${packetsReceived.getAndSet(0)} " +
             "dropped=${packetsDropped.getAndSet(0)} underruns=+${underruns - statsLastUnderruns} queue=${queue.size} " +
             "playing=$playbackStarted maxGapMs=${maxArrivalGapMs.getAndSet(0)} " +
             "sinceRxMs=${if (lastRx == 0L) -1 else (now - lastRx) / 1_000_000L} maxWriteMs=$maxWriteMs " +
-            "decoderDroppedTotal=$inputDropped outputBuffersTotal=$outputBuffers rebuffers=$rebufferCount ended=$force"
+            "decoderDroppedTotal=$inputDropped outputBuffersTotal=$outputBuffers rebuffers=$rebufferCount " +
+            "plcFramesTotal=${musicConcealer?.concealedFrames ?: 0} plcEvents=${musicConcealer?.concealments ?: 0} " +
+            "plcLateBuffers=${musicConcealer?.lateBuffers ?: 0} ended=$force"
         Log.i(STATS_TAG, line)
         report(line)
         statsLastUnderruns = underruns

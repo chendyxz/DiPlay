@@ -40,8 +40,8 @@ class ManualHotspotManager(
 ) : WirelessHotspotManager {
     private val appContext = context.applicationContext
     private val connectivityManager =
-        appContext.getSystemService(ConnectivityManager::class.java)
-    private val wifiManager = appContext.getSystemService(WifiManager::class.java)
+        androidx.core.content.ContextCompat.getSystemService(appContext, ConnectivityManager::class.java)
+    private val wifiManager = androidx.core.content.ContextCompat.getSystemService(appContext, WifiManager::class.java)
         ?: throw IllegalStateException("WifiManager is unavailable")
     private val expectedSsid = ssid
     private val passphrase = passphrase
@@ -204,8 +204,10 @@ class ManualHotspotManager(
         } catch (_: SocketException) {
             null
         } ?: return null
-        val primaryInterface = connectivityManager?.activeNetwork
-            ?.let { connectivityManager.getLinkProperties(it)?.interfaceName }
+        val primaryInterface = if (Build.VERSION.SDK_INT >= 23) {
+            connectivityManager?.activeNetwork
+                ?.let { connectivityManager.getLinkProperties(it)?.interfaceName }
+        } else null
         return Collections.list(interfaces)
             .asSequence()
             .filter { isUsableInterface(it, primaryInterface) }
@@ -258,6 +260,7 @@ class ManualHotspotManager(
         wirelessHostAddress(Collections.list(inetAddresses), index)
 
     private fun frequencyFromConnectionInfo(): Int? {
+        if (Build.VERSION.SDK_INT < 21) return null
         val connectionInfo = try {
             wifiManager.connectionInfo
         } catch (_: SecurityException) {

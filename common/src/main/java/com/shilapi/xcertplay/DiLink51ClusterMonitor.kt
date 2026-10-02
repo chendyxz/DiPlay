@@ -1,5 +1,6 @@
 package com.shilapi.xcertplay
 
+import androidx.annotation.RequiresApi
 import android.app.AppOpsManager
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
@@ -21,10 +22,11 @@ internal class DiLink51ClusterMonitor(context: Context, private val onState: (Cl
     private val seen = linkedMapOf<EventKey, Long>()
     // This firmware includes the system getter. If Android hides it, single-instance stock
     // activities still work, but an overlapping recreation conservatively hides the map.
-    private val instanceIdMethod = runCatching { UsageEvents.Event::class.java.getMethod("getInstanceId") }.getOrNull()
+    private val instanceIdMethod = if (android.os.Build.VERSION.SDK_INT < 21) null else runCatching { UsageEvents.Event::class.java.getMethod("getInstanceId") }.getOrNull()
     @Volatile private var stopped = false
     private data class EventKey(val pkg: String?, val name: String?, val id: Int, val type: Int, val time: Long)
 
+    @RequiresApi(23)
     fun start() {
         executor.scheduleWithFixedDelay({ poll() }, 0, 500, TimeUnit.MILLISECONDS)
     }
@@ -37,6 +39,7 @@ internal class DiLink51ClusterMonitor(context: Context, private val onState: (Cl
 
     private fun bootTime() = (System.currentTimeMillis() - SystemClock.elapsedRealtime()).coerceAtLeast(0)
 
+    @RequiresApi(23)
     private fun poll() {
         if (stopped) return
         val now = System.currentTimeMillis()
@@ -51,7 +54,7 @@ internal class DiLink51ClusterMonitor(context: Context, private val onState: (Cl
                     seen.clear()
                     since = bootTime()
                 }
-                val events = context.getSystemService(UsageStatsManager::class.java).queryEvents(since, now)
+                val events = androidx.core.content.ContextCompat.getSystemService(context, UsageStatsManager::class.java)?.queryEvents(since, now)
                     ?: throw IllegalStateException("Usage events unavailable")
                 val event = UsageEvents.Event()
                 while (events.hasNextEvent()) {
@@ -79,7 +82,9 @@ internal class DiLink51ClusterMonitor(context: Context, private val onState: (Cl
     }
 
     companion object {
-        fun hasAccess(context: Context): Boolean = context.getSystemService(AppOpsManager::class.java)
-            .checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName) == AppOpsManager.MODE_ALLOWED
+        @android.annotation.SuppressLint("NewApi")
+        fun hasAccess(context: Context): Boolean = android.os.Build.VERSION.SDK_INT >= 23 &&
+            androidx.core.content.ContextCompat.getSystemService(context, AppOpsManager::class.java)
+                ?.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName) == AppOpsManager.MODE_ALLOWED
     }
 }

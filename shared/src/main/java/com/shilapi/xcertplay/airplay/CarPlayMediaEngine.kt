@@ -97,6 +97,7 @@ class CarPlayMediaEngine(
                     session.close()
                 }
             },
+            bindAddress = session.localAddress ?: InetAddress.getByName("0.0.0.0"),
         )
         streams.put(streamKey, screen)?.close()
         sink.onScreenStreamActive(type, true)
@@ -154,6 +155,7 @@ class CarPlayMediaEngine(
                     capture?.record(wire, rtp, sample, error)
                 }
             },
+            bindAddress = session.localAddress ?: InetAddress.getByName("0.0.0.0"),
         )
         streams[streamKey] = audio
         audioMeta[type] = meta

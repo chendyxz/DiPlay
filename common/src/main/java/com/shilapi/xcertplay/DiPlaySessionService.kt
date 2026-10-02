@@ -22,19 +22,20 @@ class DiPlaySessionService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(NotificationChannel(CHANNEL, uiText("CarPlay connection"), NotificationManager.IMPORTANCE_LOW))
+        val manager = androidx.core.content.ContextCompat.getSystemService(this, NotificationManager::class.java)
+        if (Build.VERSION.SDK_INT >= 26) manager?.createNotificationChannel(NotificationChannel(CHANNEL, uiText("CarPlay connection"), NotificationManager.IMPORTANCE_LOW))
         val open = PendingIntent.getActivity(this, 0, Intent(this, CarPlayHostActivity::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val stop = PendingIntent.getService(this, 1, Intent(this, DiPlaySessionService::class.java).setAction(ACTION_STOP), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val notification = Notification.Builder(this, CHANNEL)
+        val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, CHANNEL) else Notification.Builder(this)
+        val notification = builder
             .setSmallIcon(R.drawable.ic_diplay_notification)
             .setContentTitle("DashFlow")
             .setContentText(uiText("CarPlay connection running"))
             .setContentIntent(open).setOngoing(true)
-            .addAction(Notification.Action.Builder(null, uiText("Disconnect"), stop).build()).build()
+            .addAction(R.drawable.ic_diplay_notification, uiText("Disconnect"), stop).build()
         if (Build.VERSION.SDK_INT >= 29) {
             var types = ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
-            if (Build.VERSION.SDK_INT >= 30 && checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            if (Build.VERSION.SDK_INT >= 30 && androidx.core.content.ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
                 types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
             }
             startForeground(1, notification, types)

@@ -42,6 +42,9 @@ private fun translateDynamicUiText(text: String): String = when {
 }
 
 private val UI_ZH = mapOf(
+    "Wireless Bluetooth unavailable" to "无线蓝牙通道不可用",
+    "DashFlow cannot access this car’s Bluetooth data connection. The car may still support Bluetooth calls and music. Try connecting your iPhone with USB." to "DashFlow 无法访问此车机的蓝牙数据通道，原车蓝牙通话和音乐仍可能正常。请尝试通过 USB 连接 iPhone。",
+    "Could not read the car’s paired phones. Check the car’s Bluetooth settings." to "无法读取车机已配对的手机，请检查原车蓝牙设置。",
     "Keep your iPhone nearby with Bluetooth and Wi-Fi on.\nAllow CarPlay if your iPhone asks." to "请将 iPhone 放在附近，并开启蓝牙和 Wi-Fi。\n在 iPhone 提示时允许 CarPlay。",
     "Use a USB data cable and unlock your iPhone.\nAllow Trust and CarPlay if your iPhone asks." to "请使用 USB 数据线连接，并解锁 iPhone。\n在 iPhone 提示时选择“信任”并允许 CarPlay。",
     "In CarPlay, swipe down with three fingers to open DashFlow settings." to "在 CarPlay 中，三指向下滑动即可打开 DashFlow 设置。",

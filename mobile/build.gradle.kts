@@ -1,8 +1,16 @@
 import java.util.Properties
+import com.android.build.api.instrumentation.AsmClassVisitorFactory
+import com.android.build.api.instrumentation.ClassContext
+import com.android.build.api.instrumentation.ClassData
+import com.android.build.api.instrumentation.InstrumentationParameters
+import com.android.build.api.instrumentation.InstrumentationScope
+import org.objectweb.asm.ClassVisitor
+import org.objectweb.asm.MethodVisitor
+import org.objectweb.asm.Opcodes
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.compose) apply false
 }
 
 // Explicit local input for both terminal builds and Android Studio Run.
@@ -14,6 +22,12 @@ val localAuthenticationAssets = providers.environmentVariable("DIPLAY_AUTH_ASSET
     .orNull ?: localProperties.getProperty("diplay.auth.assets.dir")
 val authenticationAssetsDirectory = localAuthenticationAssets?.let { file(it).canonicalFile }
 
+val kitkat = providers.gradleProperty("kitkat").map(String::toBoolean).getOrElse(false)
+
+if (kitkat) layout.buildDirectory.set(layout.projectDirectory.dir("build/kitkat"))
+
+if (!kitkat) apply(plugin = "org.jetbrains.kotlin.plugin.compose")
+
 android {
     namespace = "com.shilapi.xcertplay"
     compileSdk {
@@ -21,11 +35,16 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.xyz.dashflow"
-        minSdk = 28
+        applicationId = if (kitkat) "cn.manstep.phonemirrorBox" else "com.xyz.dashflow"
+        minSdk = if (kitkat) 19 else 28
         targetSdk = 37
         versionCode = 25
         versionName = "0.2.6"
+        if (kitkat) {
+            versionNameSuffix = "-kitkat"
+            ndk { abiFilters += "armeabi-v7a" }
+            multiDexEnabled = true
+        }
 
     }
 
@@ -46,7 +65,7 @@ android {
 
     buildTypes {
         debug {
-            applicationIdSuffix = ".hudtest"
+            if (!kitkat) applicationIdSuffix = ".hudtest"
             versionNameSuffix = "-hud-test"
         }
         release {
@@ -59,25 +78,38 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = kitkat
     }
+    lint {
+        checkDependencies = kitkat
+        if (kitkat) checkOnly.addAll(listOf("NewApi", "InlinedApi", "MissingClass"))
+    }
+
     buildFeatures {
-        compose = true
+        compose = !kitkat
     }
 }
 
 dependencies {
-    implementation(platform(libs.androidx.compose.bom))
+    if (kitkat) {
+        implementation("androidx.activity:activity-ktx:1.8.0")
+        implementation("androidx.core:core-ktx:1.13.1")
+        coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+    } else {
+        implementation(platform(libs.androidx.compose.bom))
+        implementation(libs.androidx.activity.compose)
+        implementation(libs.androidx.compose.material3)
+        implementation(libs.androidx.compose.ui)
+        implementation(libs.androidx.compose.ui.graphics)
+        implementation(libs.androidx.compose.ui.tooling.preview)
+        implementation(libs.androidx.core.ktx)
+        debugImplementation(libs.androidx.compose.ui.tooling)
+    }
     implementation(project(":common"))
     implementation(project(":shared"))
-    implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.app.projected)
-    implementation(libs.androidx.compose.material3)
-    implementation(libs.androidx.compose.ui)
-    implementation(libs.androidx.compose.ui.graphics)
-    implementation(libs.androidx.compose.ui.tooling.preview)
-    implementation(libs.androidx.core.ktx)
+    if (!kitkat) implementation(libs.androidx.app.projected)
+    if (kitkat) implementation("androidx.multidex:multidex:2.0.1")
     implementation(libs.androidx.lifecycle.runtime.ktx)
-    debugImplementation(libs.androidx.compose.ui.tooling)
 }
 
 // No implicit import. Only the two explicitly selected local runtime assets are allowed.
@@ -124,4 +156,46 @@ tasks.register("assembleStandaloneDebug") {
     group = "build"
     description = "Build a standalone car-test APK with explicitly provisioned authentication."
     dependsOn(verifyStandaloneAuthentication, "assembleDebug")
+}
+
+if (kitkat) {
+    androidComponents.onVariants { variant ->
+        variant.instrumentation.transformClassesWith(KitkatMdnsSockets::class.java, InstrumentationScope.ALL) {}
+    }
+    android {
+        sourceSets {
+            named("main") { manifest.srcFile("src/kitkat/AndroidManifest.xml") }
+            named("debug") {
+                java.directories.clear()
+                kotlin.directories.clear()
+                manifest.srcFile("src/kitkat/DebugAndroidManifest.xml")
+            }
+        }
+    }
+}
+
+// Keep the pinned JmDNS library; fix its socket construction only in the KitKat APK.
+abstract class KitkatMdnsSockets : AsmClassVisitorFactory<InstrumentationParameters.None> {
+    override fun isInstrumentable(classData: ClassData) = classData.className == "javax.jmdns.impl.JmDNSImpl"
+
+    override fun createClassVisitor(classContext: ClassContext, nextClassVisitor: ClassVisitor) =
+        object : ClassVisitor(Opcodes.ASM9, nextClassVisitor) {
+            override fun visitMethod(access: Int, name: String, descriptor: String,
+                signature: String?, exceptions: Array<out String>?): MethodVisitor {
+                val next = super.visitMethod(access, name, descriptor, signature, exceptions)
+                if (name != "openMulticastSocket") return next
+                return object : MethodVisitor(Opcodes.ASM9, next) {
+                    override fun visitTypeInsn(opcode: Int, type: String) {
+                        super.visitTypeInsn(opcode, if (opcode == Opcodes.NEW && type == "java/net/MulticastSocket") SOCKET else type)
+                    }
+                    override fun visitMethodInsn(opcode: Int, owner: String, name: String,
+                        descriptor: String, isInterface: Boolean) {
+                        super.visitMethodInsn(opcode, if (owner == "java/net/MulticastSocket" && name == "<init>") SOCKET else owner,
+                            name, descriptor, isInterface)
+                    }
+                }
+            }
+        }
+
+    companion object { private const val SOCKET = "com/shilapi/xcertplay/network/KitkatMdnsSocket" }
 }

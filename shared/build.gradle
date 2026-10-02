@@ -1,27 +1,32 @@
 plugins {
     id 'com.android.library'
 }
+def kitkat = providers.gradleProperty("kitkat").map { it.toBoolean() }.getOrElse(false)
+
+if (kitkat) layout.buildDirectory.set(layout.projectDirectory.dir("build/kitkat"))
+
 android {
     namespace = 'com.shilapi.xcertplay.shared'
     compileSdk = 37
 
     defaultConfig {
-        minSdk = 28
+        minSdk = kitkat ? 19 : 28
+        multiDexEnabled = kitkat
         targetSdk = 37
 
         ndk {
-            abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64'
+            abiFilters.addAll(kitkat ? ['armeabi-v7a'] : ['arm64-v8a', 'armeabi-v7a', 'x86_64'])
         }
 
         externalNativeBuild {
             ndkBuild {
-                arguments 'APP_PLATFORM=android-28'
+                arguments.addAll(kitkat ? ['APP_PLATFORM=android-19', 'DIPLAY_KITKAT=true'] : ['APP_PLATFORM=android-28'])
             }
         }
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
-    ndkVersion = '28.2.13676358'
+    ndkVersion = kitkat ? '23.2.8568313' : '28.2.13676358'
     externalNativeBuild {
         ndkBuild {
             path = file('src/main/jni/Android.mk')
@@ -30,11 +35,30 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        coreLibraryDesugaringEnabled = kitkat
     }
 }
 dependencies {
-    implementation libs.androidx.app
+    if (!kitkat) implementation libs.androidx.app
+    implementation kitkat ? "androidx.core:core-ktx:1.13.1" : libs.androidx.core.ktx
+    if (kitkat) {
+        implementation "androidx.annotation:annotation:1.7.1"
+        coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.5"
+    }
     implementation libs.bouncycastle
     implementation libs.jmdns
     testImplementation libs.junit
+}
+
+if (kitkat) {
+    android.sourceSets.main {
+        manifest.srcFile('src/kitkat/AndroidManifest.xml')
+        java.directories.add('src/kitkat/java')
+        kotlin.directories.add('src/kitkat/java')
+    }
+}
+
+if (!kitkat) {
+    android.sourceSets.main.java.directories.add('src/modern/java')
+    android.sourceSets.main.kotlin.directories.add('src/modern/java')
 }

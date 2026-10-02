@@ -13,9 +13,9 @@ internal object DiPlayBootstrap {
 
     @Synchronized fun ensure(context: Context) {
         if (ready) return
-        val target = File(context.noBackupFilesDir, LocalMfiAuthenticationClient.DIRECTORY)
+        val target = File(androidx.core.content.ContextCompat.getNoBackupFilesDir(context), LocalMfiAuthenticationClient.DIRECTORY)
         if (!target.exists()) {
-            val staging = File(context.noBackupFilesDir, "offline-mfi-staging")
+            val staging = File(androidx.core.content.ContextCompat.getNoBackupFilesDir(context), "offline-mfi-staging")
             staging.deleteRecursively()
             check(staging.mkdirs()) { "Could not prepare local authentication" }
             staging.setReadable(false, false); staging.setReadable(true, true)

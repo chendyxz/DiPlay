@@ -3,6 +3,7 @@ package com.shilapi.xcertplay.network
 import android.content.Context
 import android.content.Intent
 import android.net.VpnService
+import android.os.Build
 import android.os.Binder
 import android.os.IBinder
 import android.os.ParcelFileDescriptor
@@ -60,6 +61,8 @@ class CarPlayVpnService : VpnService() {
     private var tun: ParcelFileDescriptor? = null
     private var attachGeneration = 0
 
+    private external fun setLegacyTunBlocking(fd: Int)
+
     override fun onBind(intent: Intent?): IBinder = binder
 
     @Synchronized
@@ -92,10 +95,14 @@ class CarPlayVpnService : VpnService() {
                 .addRoute(LINK_LOCAL_ROUTE, LINK_PREFIX)
                 .setSession(SESSION_NAME)
                 .setMtu(TUN_MTU)
-                .setBlocking(true)
+                .apply { if (Build.VERSION.SDK_INT >= 21) setBlocking(true) }
                 .establish()
                 ?: throw IOException("VpnService.establish returned null")
             tun = tunFd
+            if (Build.VERSION.SDK_INT < 21) {
+                System.loadLibrary("xcertplay_i2c")
+                setLegacyTunBlocking(tunFd.fd)
+            }
 
             val ipv6Bridge = Ipv6NcmBridge(ncm, tunFd, hostMac) { error ->
                 onTransportError(generation, listener, error)

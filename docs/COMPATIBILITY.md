@@ -4,7 +4,7 @@ This public preview is an independent receiver, not an Apple-certified CarPlay a
 
 | Area | Current scope |
 | --- | --- |
-| Head unit | Android 9+ APK; wireless Wi-Fi Direct path needs Android 10+ |
+| Head unit | Standard APK: Android 9+; wireless Wi-Fi Direct needs Android 10+. Separate [KitKat build](BUILD.md#android-443--armv7-compatibility-build): Android 4.4.3 / API 19, ARMv7, USB or manual car hotspot; HSAE AnwPhoneLink Bluetooth bootstrap supported |
 | Phone | Standard, non-jailbroken iPhone with CarPlay enabled; device/iOS compatibility varies |
 | Physical evidence | Previous private builds: wired and wireless picture, touch and audio confirmed on the development car with iPhone XS / iOS 18.7.10 |
 | Other cars | Mixed community reports across DiLink generations; not a certified model support list |
@@ -18,6 +18,7 @@ See [BYD navigation](BYD_NAVIGATION.md) for the exact verified firmware and life
 
 ## Known limitations
 
+- HSAE Android 4.4.3: Bluetooth/iAP2 authentication, hotspot handoff, AirPlay pairing, picture, touch, audible output and reconnection after force-stop verified. Long-term connection stability needs further testing. Connections retained by the vendor service after an interrupted process are recovered using the app's recorded socket identity.
 - Some units stutter, particularly under higher video load. A 2.4 GHz link alone does not prove the cause: interference, firmware and decoder stalls can all contribute. Try Default icons, 30 fps and a lower resolution, then attach a report.
 - Some iOS/head-unit combinations do not visibly apply icon and text size. Reconnection is implemented; that does not guarantee the iPhone chooses the requested layout.
 - A radio that supports joining a 5 GHz network may still reject a 5 GHz Wi-Fi Direct group. The capability flag is diagnostic, not proof of group-owner support.

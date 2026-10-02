@@ -415,7 +415,7 @@ class CarPlayHostActivity : ComponentActivity() {
         )
         val reusedBackgroundSession = adoptBackgroundSession()
         microphoneAvailable =
-            checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+            androidx.core.content.ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         microphonePermissionResolved = microphoneAvailable
         if (reusedBackgroundSession) {
             updateDebugOverlays()
@@ -430,7 +430,7 @@ class CarPlayHostActivity : ComponentActivity() {
         displayScaleTenths = AirPlayPersistence.loadDisplayScaleTenths(this)
         // Size is now chosen only through CarPlaySize; ignore the canvas scale older builds stored.
         uiScalePercent = CarPlayUiScale.DEFAULT
-        hevcEnabled = AirPlayPersistence.loadHevcEnabled(this)
+        hevcEnabled = Build.VERSION.SDK_INT >= 21 && AirPlayPersistence.loadHevcEnabled(this)
         hevcSoftwareDecoderEnabled =
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
                 AirPlayPersistence.loadHevcSoftwareDecoderEnabled(this)
@@ -493,7 +493,7 @@ class CarPlayHostActivity : ComponentActivity() {
     }
 
     private fun hasFineLocationPermission(): Boolean =
-        checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) ==
+        androidx.core.content.ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
             PackageManager.PERMISSION_GRANTED
 
     private fun requestVpnConsent() {
@@ -509,7 +509,7 @@ class CarPlayHostActivity : ComponentActivity() {
 
     private fun requestWirelessPermissions() {
         val permissions = requiredWirelessPermissions()
-        if (permissions.all { checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }) {
+        if (permissions.all { androidx.core.content.ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }) {
             wirelessPermissionsReady = true
             updateHotspotStatusBlock()
             maybeStartCarPlay()
@@ -523,7 +523,7 @@ class CarPlayHostActivity : ComponentActivity() {
 
     private fun hasRequiredWirelessPermissions(): Boolean =
         requiredWirelessPermissions().all {
-            checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED
+            androidx.core.content.ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
         }
 
     private fun requiredWirelessPermissions(): List<String> = when {
@@ -561,7 +561,7 @@ class CarPlayHostActivity : ComponentActivity() {
             requestLocationPermission()
         }
         wirelessPermissionsReady = !wirelessEnabled || hasRequiredWirelessPermissions()
-        if (DiLink51ClusterLayout.automatic(this) && clusterMonitor == null) {
+        if (Build.VERSION.SDK_INT >= 23 && DiLink51ClusterLayout.automatic(this) && clusterMonitor == null) {
             clusterMonitor = DiLink51ClusterMonitor(this, ::onClusterActivityState).also { it.start() }
         } else if (!DiLink51ClusterLayout.automatic(this)) {
             clusterMonitor?.stop()
@@ -852,12 +852,12 @@ class CarPlayHostActivity : ComponentActivity() {
         val wirelessSwitch = Switch(this).apply {
             isChecked = wirelessEnabled
             contentDescription = "Wireless CarPlay transport"
-            showText = false
-            thumbTintList = ColorStateList(
+            if (Build.VERSION.SDK_INT >= 21) showText = false
+            if (Build.VERSION.SDK_INT >= 23) thumbTintList = ColorStateList(
                 arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
                 intArrayOf(MENU_ACCENT, MENU_SECONDARY),
             )
-            trackTintList = ColorStateList(
+            if (Build.VERSION.SDK_INT >= 23) trackTintList = ColorStateList(
                 arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
                 intArrayOf(MENU_ACCENT_TRACK, MENU_TRACK_OFF),
             )
@@ -1045,9 +1045,9 @@ class CarPlayHostActivity : ComponentActivity() {
         val seekBar = SeekBar(this).apply {
             max = CarPlayDisplayScale.MAX_TENTHS - CarPlayDisplayScale.MIN_TENTHS
             progress = displayScaleTenths - CarPlayDisplayScale.MIN_TENTHS
-            splitTrack = false
-            progressTintList = ColorStateList.valueOf(MENU_ACCENT)
-            thumbTintList = ColorStateList.valueOf(MENU_ACCENT)
+            if (Build.VERSION.SDK_INT >= 21) splitTrack = false
+            if (Build.VERSION.SDK_INT >= 21) progressTintList = ColorStateList.valueOf(MENU_ACCENT)
+            if (Build.VERSION.SDK_INT >= 23) thumbTintList = ColorStateList.valueOf(MENU_ACCENT)
             setOnSeekBarChangeListener(
                 object : SeekBar.OnSeekBarChangeListener {
                     override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
@@ -1162,12 +1162,13 @@ class CarPlayHostActivity : ComponentActivity() {
         val hevcSwitch = Switch(this).apply {
             isChecked = hevcEnabled
             contentDescription = "HEVC H.265 video transport"
-            showText = false
-            thumbTintList = ColorStateList(
+            isEnabled = Build.VERSION.SDK_INT >= 21
+            if (Build.VERSION.SDK_INT >= 21) showText = false
+            if (Build.VERSION.SDK_INT >= 23) thumbTintList = ColorStateList(
                 arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
                 intArrayOf(MENU_ACCENT, MENU_SECONDARY),
             )
-            trackTintList = ColorStateList(
+            if (Build.VERSION.SDK_INT >= 23) trackTintList = ColorStateList(
                 arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
                 intArrayOf(MENU_ACCENT_TRACK, MENU_TRACK_OFF),
             )
@@ -1207,12 +1208,12 @@ class CarPlayHostActivity : ComponentActivity() {
         val softwareHevcSwitch = Switch(this).apply {
             isChecked = hevcSoftwareDecoderEnabled
             contentDescription = "Use software HEVC decoder"
-            showText = false
-            thumbTintList = ColorStateList(
+            if (Build.VERSION.SDK_INT >= 21) showText = false
+            if (Build.VERSION.SDK_INT >= 23) thumbTintList = ColorStateList(
                 arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
                 intArrayOf(MENU_ACCENT, MENU_SECONDARY),
             )
-            trackTintList = ColorStateList(
+            if (Build.VERSION.SDK_INT >= 23) trackTintList = ColorStateList(
                 arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
                 intArrayOf(MENU_ACCENT_TRACK, MENU_TRACK_OFF),
             )
@@ -1319,7 +1320,7 @@ class CarPlayHostActivity : ComponentActivity() {
             isAllCaps = false
             textSize = 17f
             setTextColor(MENU_BUTTON_TEXT)
-            backgroundTintList = ColorStateList.valueOf(MENU_ACCENT)
+            if (Build.VERSION.SDK_INT >= 21) backgroundTintList = ColorStateList.valueOf(MENU_ACCENT)
             minHeight = dp(52)
             setOnClickListener { saveSettingsAndReconnect() }
         }
@@ -1336,7 +1337,7 @@ class CarPlayHostActivity : ComponentActivity() {
             isAllCaps = false
             textSize = 17f
             setTextColor(Color.WHITE)
-            backgroundTintList = ColorStateList.valueOf(MENU_DANGER)
+            if (Build.VERSION.SDK_INT >= 21) backgroundTintList = ColorStateList.valueOf(MENU_DANGER)
             minHeight = dp(52)
             setOnClickListener { exitApplication() }
         }
@@ -1371,7 +1372,7 @@ class CarPlayHostActivity : ComponentActivity() {
                 isAllCaps = false
                 textSize = 22f
                 setTextColor(Color.WHITE)
-                backgroundTintList = ColorStateList.valueOf(MENU_TRACK_OFF)
+                if (Build.VERSION.SDK_INT >= 21) backgroundTintList = ColorStateList.valueOf(MENU_TRACK_OFF)
                 contentDescription = "Discard changes and exit settings"
                 minWidth = 0
                 minHeight = 0
@@ -1708,12 +1709,12 @@ class CarPlayHostActivity : ComponentActivity() {
             val switch = Switch(this@CarPlayHostActivity).apply {
                 isChecked = locationReportingEnabled
                 contentDescription = "Report Android location to the iPhone"
-                showText = false
-                thumbTintList = ColorStateList(
+                if (Build.VERSION.SDK_INT >= 21) showText = false
+                if (Build.VERSION.SDK_INT >= 23) thumbTintList = ColorStateList(
                     arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
                     intArrayOf(MENU_ACCENT, MENU_SECONDARY),
                 )
-                trackTintList = ColorStateList(
+                if (Build.VERSION.SDK_INT >= 23) trackTintList = ColorStateList(
                     arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
                     intArrayOf(MENU_ACCENT_TRACK, MENU_TRACK_OFF),
                 )
@@ -1812,9 +1813,9 @@ class CarPlayHostActivity : ComponentActivity() {
         val seekBar = SeekBar(this).apply {
             max = (values.size - 1).coerceAtLeast(0)
             progress = selectedIndex
-            splitTrack = false
-            progressTintList = ColorStateList.valueOf(MENU_ACCENT)
-            thumbTintList = ColorStateList.valueOf(MENU_ACCENT)
+            if (Build.VERSION.SDK_INT >= 21) splitTrack = false
+            if (Build.VERSION.SDK_INT >= 21) progressTintList = ColorStateList.valueOf(MENU_ACCENT)
+            if (Build.VERSION.SDK_INT >= 23) thumbTintList = ColorStateList.valueOf(MENU_ACCENT)
             setOnSeekBarChangeListener(
                 object : SeekBar.OnSeekBarChangeListener {
                     override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
@@ -2160,7 +2161,7 @@ class CarPlayHostActivity : ComponentActivity() {
                 textSize = 18f
                 setTextColor(Color.WHITE)
                 setHintTextColor(MENU_SECONDARY)
-                backgroundTintList = ColorStateList.valueOf(MENU_ACCENT)
+                if (Build.VERSION.SDK_INT >= 21) backgroundTintList = ColorStateList.valueOf(MENU_ACCENT)
                 minHeight = dp(48)
                 isSingleLine = true
                 inputType = when {
@@ -2197,12 +2198,12 @@ class CarPlayHostActivity : ComponentActivity() {
             Switch(this@CarPlayHostActivity).apply {
                 isChecked = checked
                 contentDescription = uiText(description)
-                showText = false
-                thumbTintList = ColorStateList(
+                if (Build.VERSION.SDK_INT >= 21) showText = false
+                if (Build.VERSION.SDK_INT >= 23) thumbTintList = ColorStateList(
                     arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
                     intArrayOf(MENU_ACCENT, MENU_SECONDARY),
                 )
-                trackTintList = ColorStateList(
+                if (Build.VERSION.SDK_INT >= 23) trackTintList = ColorStateList(
                     arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
                     intArrayOf(MENU_ACCENT_TRACK, MENU_TRACK_OFF),
                 )
@@ -2253,7 +2254,7 @@ class CarPlayHostActivity : ComponentActivity() {
             setPadding(0, dp(8), 0, 0)
         }
         val modes = buildList {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !com.shilapi.xcertplay.host.BuildConfig.KITKAT_BUILD) {
                 add(WirelessHotspotMode.WIFI_P2P to "Wi-Fi P2P (5 GHz)")
             }
             add(WirelessHotspotMode.MANUAL to "Built-in car hotspot")
@@ -2265,7 +2266,7 @@ class CarPlayHostActivity : ComponentActivity() {
                 text = label
                 textSize = 18f
                 setTextColor(MENU_SECONDARY)
-                buttonTintList = ColorStateList(
+                if (Build.VERSION.SDK_INT >= 21) buttonTintList = ColorStateList(
                     arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
                     intArrayOf(MENU_ACCENT, MENU_SECONDARY),
                 )
@@ -2551,7 +2552,7 @@ class CarPlayHostActivity : ComponentActivity() {
                 this.text = text
                 textSize = 17f
                 setTextColor(MENU_SECONDARY)
-                buttonTintList = ColorStateList(
+                if (Build.VERSION.SDK_INT >= 21) buttonTintList = ColorStateList(
                     arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
                     intArrayOf(MENU_ACCENT, MENU_SECONDARY),
                 )
@@ -2649,40 +2650,43 @@ class CarPlayHostActivity : ComponentActivity() {
 
     private data class CanvasSupport(val supported: Boolean, val reason: String, val details: String)
 
-    private fun largerCanvasSupport(display: AirPlayDisplayConfig): CanvasSupport = try {
-        val mime = if (hevcEnabled) MediaFormat.MIMETYPE_VIDEO_HEVC else MediaFormat.MIMETYPE_VIDEO_AVC
-        // Match MediaCodec.createDecoderByType's first suitable decoder; do not silently force
-        // an enlarged stream through a software decoder on a slower head unit.
-        val decoder = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.firstOrNull {
-            !it.isEncoder && it.supportedTypes.any { type -> type.equals(mime, ignoreCase = true) }
-        }
-        if (decoder == null) {
-            CanvasSupport(false, "no_decoder", "Decoder capability mime=$mime result=no_decoder")
-        } else {
-            val hardware = if (Build.VERSION.SDK_INT >= 29) decoder.isHardwareAccelerated
-                else !decoder.name.startsWith("OMX.google.") && !decoder.name.startsWith("c2.android.")
-            val video = decoder.getCapabilitiesForType(mime).videoCapabilities
-            val sizeSupported = video?.isSizeSupported(display.widthPixels, display.heightPixels) == true
-            val rateSupported = sizeSupported && video?.areSizeAndRateSupported(
-                display.widthPixels, display.heightPixels, display.fps.toDouble()) == true
-            val reason = when {
-                !hardware -> "software_decoder"
-                hevcEnabled && hevcSoftwareDecoderEnabled -> "software_hevc_selected"
-                video == null -> "no_video_capabilities"
-                !sizeSupported -> "canvas_dimensions_unsupported"
-                !rateSupported -> "frame_rate_unsupported"
-                else -> "supported"
+    private fun largerCanvasSupport(display: AirPlayDisplayConfig): CanvasSupport {
+        if (Build.VERSION.SDK_INT < 21) return CanvasSupport(false, "legacy_decoder", "Android 4.4 decoder size limits are unavailable; use the native canvas")
+        return try {
+            val mime = if (hevcEnabled) MediaFormat.MIMETYPE_VIDEO_HEVC else MediaFormat.MIMETYPE_VIDEO_AVC
+            // Match MediaCodec.createDecoderByType's first suitable decoder; do not silently force
+            // an enlarged stream through a software decoder on a slower head unit.
+            val decoder = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.firstOrNull {
+                !it.isEncoder && it.supportedTypes.any { type -> type.equals(mime, ignoreCase = true) }
             }
-            CanvasSupport(reason == "supported", reason,
-                "Decoder capability codec=${decoder.name} mime=$mime hardware=$hardware " +
-                    "sizeSupported=$sizeSupported rateSupported=$rateSupported " +
-                    "widths=${video?.supportedWidths} heights=${video?.supportedHeights} " +
-                    "alignment=${video?.widthAlignment}x${video?.heightAlignment} " +
-                    "fpsRange=${video?.supportedFrameRates} result=$reason")
+            if (decoder == null) {
+                CanvasSupport(false, "no_decoder", "Decoder capability mime=$mime result=no_decoder")
+            } else {
+                val hardware = if (Build.VERSION.SDK_INT >= 29) decoder.isHardwareAccelerated
+                    else !decoder.name.startsWith("OMX.google.") && !decoder.name.startsWith("c2.android.")
+                val video = decoder.getCapabilitiesForType(mime).videoCapabilities
+                val sizeSupported = video?.isSizeSupported(display.widthPixels, display.heightPixels) == true
+                val rateSupported = sizeSupported && video?.areSizeAndRateSupported(
+                    display.widthPixels, display.heightPixels, display.fps.toDouble()) == true
+                val reason = when {
+                    !hardware -> "software_decoder"
+                    hevcEnabled && hevcSoftwareDecoderEnabled -> "software_hevc_selected"
+                    video == null -> "no_video_capabilities"
+                    !sizeSupported -> "canvas_dimensions_unsupported"
+                    !rateSupported -> "frame_rate_unsupported"
+                    else -> "supported"
+                }
+                CanvasSupport(reason == "supported", reason,
+                    "Decoder capability codec=${decoder.name} mime=$mime hardware=$hardware " +
+                        "sizeSupported=$sizeSupported rateSupported=$rateSupported " +
+                        "widths=${video?.supportedWidths} heights=${video?.supportedHeights} " +
+                        "alignment=${video?.widthAlignment}x${video?.heightAlignment} " +
+                        "fpsRange=${video?.supportedFrameRates} result=$reason")
+            }
+        } catch (error: Exception) {
+            CanvasSupport(false, "capability_query_${error.javaClass.simpleName}",
+                "Decoder capability query failed error=${error.javaClass.simpleName}")
         }
-    } catch (error: Exception) {
-        CanvasSupport(false, "capability_query_${error.javaClass.simpleName}",
-            "Decoder capability query failed error=${error.javaClass.simpleName}")
     }
 
     private fun createAirPlayConfig(size: DisplaySize): AirPlayConfig {
@@ -3124,7 +3128,7 @@ class CarPlayHostActivity : ComponentActivity() {
             }
         }
         try {
-            startForegroundService(Intent(this, DiPlaySessionService::class.java))
+            androidx.core.content.ContextCompat.startForegroundService(this, Intent(this, DiPlaySessionService::class.java))
             next.start()
         } catch (error: RuntimeException) {
             appendLog("Connection could not start: ${error.javaClass.simpleName}")
@@ -3323,7 +3327,7 @@ class CarPlayHostActivity : ComponentActivity() {
     private fun exitApplication() {
         if (shuttingDown.get()) return
         restoreSettingsBaseline()
-        finishAndRemoveTask()
+        if (Build.VERSION.SDK_INT >= 21) finishAndRemoveTask() else finish()
         shutdown(terminateProcess = true, reason = "settings exit application")
     }
 

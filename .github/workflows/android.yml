@@ -40,3 +40,37 @@ jobs:
             shared/build/reports/tests/
             common/build/reports/tests/
             mobile/build/reports/lint-results-debug.html
+
+  kitkat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: |
+            17
+            25
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools platforms;android-37.0 build-tools;36.0.0 ndk;23.2.8568313
+      - uses: gradle/actions/setup-gradle@v4
+      - name: API 19 runtime tests, protocol tests, lint and ARMv7 build
+        run: ./gradlew -Pkitkat=true :shared:testDebugUnitTest :common:testDebugUnitTest :mobile:lintDebug :mobile:assembleDebug --stacktrace
+      - name: Upload KitKat debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DashFlow-kitkat-armv7-debug-${{ github.sha }}
+          path: mobile/build/kitkat/outputs/apk/debug/mobile-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+      - name: KitKat test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kitkat-test-reports
+          path: |
+            shared/build/kitkat/reports/tests/
+            common/build/kitkat/reports/tests/
+            mobile/build/kitkat/reports/lint-results-debug.html

@@ -1,5 +1,6 @@
 package com.shilapi.xcertplay.transport
 
+import androidx.annotation.RequiresApi
 import android.hardware.usb.UsbConfiguration
 import android.hardware.usb.UsbConstants
 import android.hardware.usb.UsbEndpoint
@@ -26,12 +27,29 @@ object NcmFunctionDiscovery {
         val statusIn: UsbEndpoint?,
         val bulkIn: UsbEndpoint,
         val bulkOut: UsbEndpoint,
+        val dataAlternateSetting: Int = DATA_ALTERNATE_SETTING,
     )
 
+    internal fun find(configuration: LegacyUsbConfiguration): NcmFunction? {
+        val descriptor = configuration.descriptor
+        val control = configuration.usbInterface(descriptor.control ?: return null)
+        val dataDescriptor = descriptor.interfaces.filter {
+            it.interfaceClass == DATA_CLASS && bulkEndpoints(configuration.usbInterface(it)) != null
+        }.minByOrNull { if (it.alternateSetting == DATA_ALTERNATE_SETTING) 0 else 1 } ?: return null
+        val data = configuration.usbInterface(dataDescriptor)
+        val endpoints = bulkEndpoints(data) ?: return null
+        val statusIn = (0 until control.endpointCount).map(control::getEndpoint).singleOrNull {
+            it.direction == UsbConstants.USB_DIR_IN && it.type == UsbConstants.USB_ENDPOINT_XFER_INT
+        }
+        return NcmFunction(control, data, statusIn, endpoints.first, endpoints.second, dataDescriptor.alternateSetting)
+    }
+
+    @RequiresApi(21)
     fun find(configuration: UsbConfiguration): NcmFunction? {
         return findCdcNcm(configuration)
     }
 
+    @RequiresApi(21)
     private fun findCdcNcm(configuration: UsbConfiguration): NcmFunction? {
         val control = interfaces(configuration).firstOrNull {
             it.interfaceClass == CONTROL_CLASS && it.interfaceSubclass == CONTROL_SUBCLASS
@@ -47,9 +65,10 @@ object NcmFunctionDiscovery {
                 it.direction == UsbConstants.USB_DIR_IN &&
                     it.type == UsbConstants.USB_ENDPOINT_XFER_INT
             }
-        return NcmFunction(control, data, statusIn, endpoints.first, endpoints.second)
+        return NcmFunction(control, data, statusIn, endpoints.first, endpoints.second, data.alternateSetting)
     }
 
+    @RequiresApi(21)
     private fun interfaces(configuration: UsbConfiguration): List<UsbInterface> =
         (0 until configuration.interfaceCount).map(configuration::getInterface)
 

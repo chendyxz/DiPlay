@@ -123,9 +123,10 @@ class CarPlayBonjour(
     private val config: AirPlayConfig,
     private val identity: AirPlayIdentity,
     private val advertisedHost: String? = null,
-    private val useInterfaceMdns: Boolean = false,
+    useInterfaceMdns: Boolean = false,
     private val onEvent: (CarPlayBonjourEvent) -> Unit = {},
 ) : Closeable {
+    private val useInterfaceMdns = useInterfaceMdns || Build.VERSION.SDK_INT < 21
     private val nsdManager = (context.applicationContext ?: context)
         .getSystemService(Context.NSD_SERVICE) as NsdManager
     private val services = LinkedBlockingQueue<NsdServiceInfo>()
@@ -134,8 +135,8 @@ class CarPlayBonjour(
     private val seenServices = ConcurrentHashMap.newKeySet<String>()
     private val lifecycleLock = Any()
     private val localAdvertisedAddress = advertisedHostAddress()
-    private val multicastLock = (context.applicationContext ?: context)
-        .getSystemService(WifiManager::class.java)
+    private val multicastLock = requireNotNull(androidx.core.content.ContextCompat.getSystemService(
+        context.applicationContext ?: context, WifiManager::class.java))
         .createMulticastLock("carplay-bonjour").apply { setReferenceCounted(false) }
 
     private var started = false
@@ -247,7 +248,7 @@ class CarPlayBonjour(
                         "$AIRPLAY_SERVICE_TYPE.local.", config.deviceName, config.port,
                         0, 0, CarPlayBonjourProtocol.airPlayTxtRecords(config, identity),
                     ))
-                } else {
+                } else if (Build.VERSION.SDK_INT >= 21) {
                     registerAirPlay()
                     registrationRequested = true
                     nsdManager.discoverServices(
@@ -312,6 +313,7 @@ class CarPlayBonjour(
     }
 
     @Suppress("DEPRECATION")
+    @androidx.annotation.RequiresApi(21)
     private fun registerAirPlay() {
         val serviceInfo = NsdServiceInfo().apply {
             serviceName = config.deviceName
@@ -385,7 +387,7 @@ class CarPlayBonjour(
         if (port !in 1..65535) return
         val serviceName = resolved.serviceName ?: service.serviceName ?: return
         val host = address.hostAddress ?: return
-        val bluetoothId = resolved.attributes
+        val bluetoothId = (if (Build.VERSION.SDK_INT >= 21) resolved.attributes else null)
             ?.get("id")
             ?.let(::decodeTxtValue)
             ?.takeIf { it.isNotBlank() }

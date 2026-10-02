@@ -3,6 +3,7 @@ package com.shilapi.xcertplay.media
 import android.media.AudioFormat as AndroidAudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.os.Build
 import android.util.Log
 import com.shilapi.xcertplay.airplay.AudioCodecKind
 import com.shilapi.xcertplay.airplay.MicrophoneConfig
@@ -66,7 +67,11 @@ internal class MicrophoneUplink(private val config: MicrophoneConfig) : Closeabl
         }
         val bufferSize = maxOf(minBuffer * 2, config.frameBytes * 4)
         val nextRecorder = try {
-            AudioRecord.Builder()
+            if (Build.VERSION.SDK_INT < 23) {
+                @Suppress("DEPRECATION")
+                AudioRecord(source, config.sampleRate, channelMask,
+                    AndroidAudioFormat.ENCODING_PCM_16BIT, bufferSize)
+            } else AudioRecord.Builder()
                 .setAudioSource(source)
                 .setAudioFormat(
                     AndroidAudioFormat.Builder()
@@ -94,7 +99,8 @@ internal class MicrophoneUplink(private val config: MicrophoneConfig) : Closeabl
         val nextSocket = try {
             DatagramSocket(null).apply {
                 reuseAddress = true
-                bind(InetSocketAddress(InetAddress.getByName("::"), 0))
+                bind(InetSocketAddress(InetAddress.getByName(
+                    if (config.host is java.net.Inet6Address) "::" else "0.0.0.0"), 0))
             }
         } catch (error: Exception) {
             Log.e(TAG, "microphone socket creation failed", error)
@@ -134,7 +140,9 @@ internal class MicrophoneUplink(private val config: MicrophoneConfig) : Closeabl
         var filled = 0
         try {
             while (running.get()) {
-                val count = recorder.read(readBuffer, 0, readBuffer.size, AudioRecord.READ_BLOCKING)
+                val count = if (Build.VERSION.SDK_INT >= 23) {
+                    recorder.read(readBuffer, 0, readBuffer.size, AudioRecord.READ_BLOCKING)
+                } else recorder.read(readBuffer, 0, readBuffer.size)
                 if (count < 0) {
                     if (running.get()) Log.e(TAG, "microphone read failed code=$count")
                     return

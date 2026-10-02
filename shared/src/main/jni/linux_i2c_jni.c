@@ -147,3 +147,15 @@ Java_com_shilapi_xcertplay_transport_LinuxI2cNative_close(
         throw_native_error(env, errno, "close");
     }
 }
+
+/* VpnService.Builder.setBlocking is only available from API 21. */
+JNIEXPORT void JNICALL
+Java_com_shilapi_xcertplay_network_CarPlayVpnService_setLegacyTunBlocking(
+        JNIEnv *env, jobject receiver, jint fd) {
+    (void) receiver;
+    int flags = fcntl(fd, F_GETFL);
+    if (flags == -1 || fcntl(fd, F_SETFL, flags & ~O_NONBLOCK) == -1) {
+        jclass exception = (*env)->FindClass(env, "java/io/IOException");
+        if (exception != NULL) (*env)->ThrowNew(env, exception, "Could not make the VPN tunnel blocking");
+    }
+}

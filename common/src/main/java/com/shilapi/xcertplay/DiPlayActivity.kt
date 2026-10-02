@@ -31,6 +31,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.shilapi.xcertplay.airplay.CarPlayClusterDisplay
 import com.shilapi.xcertplay.host.R
 import com.shilapi.xcertplay.orchestration.WirelessHotspotMode
+import com.shilapi.xcertplay.transport.HsaeBluetoothClient
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -54,6 +55,7 @@ class DiPlayActivity : ComponentActivity() {
     private var disconnectButton: Button? = null
     private var lastRunning: Boolean? = null
     private var pendingWireless = false
+    private var choosingPhone = false
     private var initialLaunch = true
     private var automaticProjectionEntry = true
     private var notificationTransport = true
@@ -93,7 +95,7 @@ class DiPlayActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         com.shilapi.xcertplay.hud.BydNavigationOutputs.onAppOpened(applicationContext)
         WindowCompat.setDecorFitsSystemWindows(window, true)
-        window.statusBarColor = BG; window.navigationBarColor = BG
+        if (Build.VERSION.SDK_INT >= 21) { window.statusBarColor = BG; window.navigationBarColor = BG }
         WindowInsetsControllerCompat(window, window.decorView).apply {
             isAppearanceLightStatusBars = false
             hide(WindowInsetsCompat.Type.statusBars())
@@ -178,11 +180,11 @@ class DiPlayActivity : ComponentActivity() {
         val wide = resources.configuration.screenWidthDp >= 850
         val body = column()
         val left = column()
-        left.addView(label("YOUR PHONE. YOUR DRIVE.", 12, ACCENT, true).apply { letterSpacing = .16f })
+        left.addView(label("YOUR PHONE. YOUR DRIVE.", 12, ACCENT, true).apply { if (Build.VERSION.SDK_INT >= 21) letterSpacing = .16f })
         left.addView(label("A familiar drive.", if (wide) 42 else 36, TEXT, true).apply { setPadding(0, dp(12), 0, dp(10)) })
         left.addView(label("Your maps, music and conversations.\nCarPlay, right here on your car display.", 19, MUTED))
         val card = card()
-        card.addView(label("WIRELESS CARPLAY", 12, ACCENT, true).apply { letterSpacing = .12f })
+        card.addView(label("WIRELESS CARPLAY", 12, ACCENT, true).apply { if (Build.VERSION.SDK_INT >= 21) letterSpacing = .12f })
         status = label("Ready when you are", 24, TEXT, true).apply { setPadding(0, dp(10), 0, dp(16)) }
         card.addView(status)
         connectButton = button("Connect phone", true) {
@@ -220,7 +222,7 @@ class DiPlayActivity : ComponentActivity() {
         right.addView(label("Plug your iPhone into a USB data port.\nAllow CarPlay when your iPhone asks.", 14, MUTED).apply { gravity = Gravity.CENTER; setPadding(dp(8), dp(10), dp(8), dp(24)) })
         right.addView(button("Settings", false) { page = "settings"; render() }, matchButton())
         right.addView(label("Make DashFlow feel right for your car.", 14, MUTED).apply { gravity = Gravity.CENTER; setPadding(0, dp(10), 0, dp(24)) })
-        right.addView(label("PUBLIC PREVIEW  ·  ${version()}", 12, MUTED).apply { letterSpacing = .08f })
+        right.addView(label("PUBLIC PREVIEW  ·  ${version()}", 12, MUTED).apply { if (Build.VERSION.SDK_INT >= 21) letterSpacing = .08f })
         if (wide) {
             // Both rows share column widths. The USB button starts at the wireless
             // card's top edge, independently of hero wrapping or font scaling.
@@ -277,7 +279,7 @@ class DiPlayActivity : ComponentActivity() {
                 AirPlayPersistence.saveMediaBufferMillis(this, bufferPresets[it])
             }
             choice(card, "Frame rate", listOf("30 fps · lighter load", "60 fps · smoother motion"), if (AirPlayPersistence.loadFps(this) == 60) 1 else 0) { AirPlayPersistence.saveFps(this, if (it == 1) 60 else 30) }
-            toggle(card, "Efficient video", "Use HEVC. Leave off for the widest head-unit compatibility.", AirPlayPersistence.loadHevcEnabled(this)) { AirPlayPersistence.saveHevcEnabled(this, it) }
+            if (Build.VERSION.SDK_INT >= 21) toggle(card, "Efficient video", "Use HEVC. Leave off for the widest head-unit compatibility.", AirPlayPersistence.loadHevcEnabled(this)) { AirPlayPersistence.saveHevcEnabled(this, it) }
             toggle(card, "Right-hand drive", "Place CarPlay’s controls closer to the driver.", AirPlayPersistence.loadRightHandDrive(this)) { AirPlayPersistence.saveRightHandDrive(this, it) }
             toggle(card, "Full screen", "Hide the car’s system bars while CarPlay is open.", AirPlayPersistence.loadHideTopBar(this) && AirPlayPersistence.loadHideBottomBar(this)) {
                 AirPlayPersistence.saveHideTopBar(this, it); AirPlayPersistence.saveHideBottomBar(this, it)
@@ -467,7 +469,7 @@ class DiPlayActivity : ComponentActivity() {
 
     private fun wirelessLinkControls(parent: LinearLayout) {
         val mode = if (pendingCarHotspotSetup) WirelessHotspotMode.MANUAL else AirPlayPersistence.loadWirelessHotspotMode(this)
-        val modes = listOf(WirelessHotspotMode.MANUAL, WirelessHotspotMode.WIFI_P2P)
+        val modes = if (Build.VERSION.SDK_INT >= 29 && !com.shilapi.xcertplay.host.BuildConfig.KITKAT_BUILD) listOf(WirelessHotspotMode.MANUAL, WirelessHotspotMode.WIFI_P2P) else listOf(WirelessHotspotMode.MANUAL)
         val titles = listOf("Built-in car hotspot", "Wi-Fi Direct")
         val descriptions = listOf(
             "Use the car’s own hotspot. Select 5 GHz in car settings if available.",
@@ -594,7 +596,7 @@ class DiPlayActivity : ComponentActivity() {
             setPadding(0, dp(16), 0, dp(16))
         })
         body.addView(button("Copy command", false) {
-            getSystemService(android.content.ClipboardManager::class.java).setPrimaryClip(
+            androidx.core.content.ContextCompat.getSystemService(this, android.content.ClipboardManager::class.java)?.setPrimaryClip(
                 android.content.ClipData.newPlainText("DashFlow Usage Access", command))
             toast("Copied to the car clipboard. Run the command on your computer.")
         }, matchButton(0, 56))
@@ -685,7 +687,7 @@ class DiPlayActivity : ComponentActivity() {
             pendingWireless = true; choosePhone(); return
         }
         val preferences = getSharedPreferences("diplay", MODE_PRIVATE)
-        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED && !preferences.getBoolean("notification_asked", false)) {
+        if (Build.VERSION.SDK_INT >= 33 && androidx.core.content.ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED && !preferences.getBoolean("notification_asked", false)) {
             preferences.edit().putBoolean("notification_asked", true).apply()
             notificationTransport = wireless
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -702,17 +704,54 @@ class DiPlayActivity : ComponentActivity() {
         startActivity(Intent(this, CarPlayHostActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
     }
     private fun choosePhone() {
-        if (Build.VERSION.SDK_INT >= 31 && checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+        if (choosingPhone) return
+        if (HsaeBluetoothClient.isAvailable(this)) {
+            choosingPhone = true
+            Thread({
+                val result = runCatching {
+                    HsaeBluetoothClient(this).use { client ->
+                        if (!client.isEnabled()) null else client.pairedDevices().map { it.name to it.address }
+                    }
+                }
+                runOnUiThread {
+                    choosingPhone = false
+                    if (!isFinishing && !isDestroyed) result.fold(
+                        onSuccess = { devices -> if (devices == null) bluetoothOffDialog() else showPairedPhones(devices) },
+                        onFailure = { error ->
+                            android.util.Log.e("xcertplay-usb", "HSAE paired phone query failed", error)
+                            toast("Could not read the car’s paired phones. Check the car’s Bluetooth settings.")
+                        },
+                    )
+                }
+            }, "dashflow-hsae-paired-phones").start()
+            return
+        }
+        if (Build.VERSION.SDK_INT >= 31 && androidx.core.content.ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
             bluetoothPermission.launch(Manifest.permission.BLUETOOTH_CONNECT); return
         }
-        val adapter = getSystemService(BluetoothManager::class.java)?.adapter
-        if (adapter == null || !adapter.isEnabled) {
-            AlertDialog.Builder(this).setTitle(uiText("Turn on Bluetooth"))
-                .setMessage(uiText("Enable the car’s Bluetooth and pair your iPhone first."))
-                .setPositiveButton(uiText("Open Bluetooth")) { _, _ -> openSystem(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) }
-                .setNegativeButton(uiText("Later"), null).show(); return
+        val adapter = androidx.core.content.ContextCompat.getSystemService(this, BluetoothManager::class.java)?.adapter
+        if (adapter == null) {
+            pendingWireless = false
+            AlertDialog.Builder(this).setTitle(uiText("Wireless Bluetooth unavailable"))
+                .setMessage(uiText("DashFlow cannot access this car’s Bluetooth data connection. The car may still support Bluetooth calls and music. Try connecting your iPhone with USB."))
+                .setPositiveButton(uiText("Connect with USB")) { _, _ -> connect(false) }
+                .setNegativeButton(uiText("Cancel"), null).show()
+            return
         }
-        val devices = runCatching { adapter.bondedDevices.sortedBy { it.name ?: "" } }.getOrDefault(emptyList())
+        if (!adapter.isEnabled) { bluetoothOffDialog(); return }
+        val devices = runCatching { adapter.bondedDevices.map { (it.name ?: "Paired device") to it.address } }.getOrDefault(emptyList())
+        showPairedPhones(devices)
+    }
+
+    private fun bluetoothOffDialog() {
+        AlertDialog.Builder(this).setTitle(uiText("Turn on Bluetooth"))
+            .setMessage(uiText("Enable the car’s Bluetooth and pair your iPhone first."))
+            .setPositiveButton(uiText("Open Bluetooth")) { _, _ -> openSystem(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) }
+            .setNegativeButton(uiText("Later"), null).show()
+    }
+
+    private fun showPairedPhones(phones: List<Pair<String, String>>) {
+        val devices = phones.sortedBy { it.first }
         if (devices.isEmpty()) {
             AlertDialog.Builder(this).setTitle(uiText("Pair your iPhone"))
                 .setMessage(uiText("On your iPhone, open Settings → Bluetooth and pair with the car. Then return to DashFlow and choose Connect phone."))
@@ -721,11 +760,11 @@ class DiPlayActivity : ComponentActivity() {
         }
         AlertDialog.Builder(this).setTitle(uiText("Choose your iPhone"))
             .setItems(devices.map { device ->
-                val name = device.name ?: "Paired device"
-                if (devices.count { it.name == device.name } > 1) "$name · ${device.address.takeLast(5)}" else name
+                val name = device.first
+                if (devices.count { it.first == name } > 1) "$name · ${device.second.takeLast(5)}" else name
             }.toTypedArray()) { _, index ->
                 val device = devices[index]
-                DiPlayPreferences.savePhone(this, device.address, device.name ?: "iPhone")
+                DiPlayPreferences.savePhone(this, device.second, device.first)
                 val start = pendingWireless; pendingWireless = false
                 render()
                 if (start) connect(true)
@@ -757,7 +796,8 @@ class DiPlayActivity : ComponentActivity() {
     }
 
     private fun resetWirelessGroup() {
-        val manager = getSystemService(android.net.wifi.p2p.WifiP2pManager::class.java)
+        if (Build.VERSION.SDK_INT < 29) return
+        val manager = androidx.core.content.ContextCompat.getSystemService(this, android.net.wifi.p2p.WifiP2pManager::class.java)
         if (manager == null) { toast("This head unit does not support Wi-Fi Direct."); return }
         val channel = manager.initialize(this, mainLooper, null)
         try {
@@ -885,14 +925,19 @@ class DiPlayActivity : ComponentActivity() {
             openSystem(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
         }.setNegativeButton(uiText("Later"), null).show()
     }
-    private fun openSystem(intent: Intent) { runCatching { startActivity(intent) }.onFailure { toast("Open this setting from your car’s Settings app.") } }
+    private fun openSystem(intent: Intent) {
+        val target = if (intent.action == Settings.ACTION_BLUETOOTH_SETTINGS && HsaeBluetoothClient.isAvailable(this)) {
+            Intent().setClassName("com.hsae.d531mc.systemsetting", "com.hsae.d531mc.systemsetting.connect.activity.BlueActivity")
+        } else intent
+        runCatching { startActivity(target) }.onFailure { toast("Open this setting from your car’s Settings app.") }
+    }
     private fun toast(message: String) { Toast.makeText(this, uiText(message), Toast.LENGTH_LONG).show() }
     private fun version() = packageManager.getPackageInfo(packageName, 0).versionName ?: "0.1.0-beta.1"
     private fun section(parent: LinearLayout, title: String, icon: Int? = null, build: (LinearLayout) -> Unit) {
         val card = card()
         val heading = row().apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, 0, 0, dp(16)) }
         if (icon != null) heading.addView(ImageView(this).apply {
-            setImageResource(icon); imageTintList = ColorStateList.valueOf(ACCENT)
+            setImageResource(icon); if (Build.VERSION.SDK_INT >= 21) imageTintList = ColorStateList.valueOf(ACCENT)
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }, LinearLayout.LayoutParams(dp(28), dp(28)).apply { marginEnd = dp(12) })
         heading.addView(label(title, 22, TEXT, true), LinearLayout.LayoutParams(0, -2, 1f))
@@ -904,7 +949,7 @@ class DiPlayActivity : ComponentActivity() {
         val line = row().apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(12), 0, dp(12)) }
         val text = column(); text.addView(label(title, 18, TEXT, true)); text.addView(label(description, 14, MUTED).apply { setPadding(0, dp(6), dp(16), 0) })
         line.addView(text, LinearLayout.LayoutParams(0, -2, 1f))
-        line.addView(Switch(this).apply { contentDescription = title; isChecked = value; minHeight = dp(56); buttonTintList = ColorStateList.valueOf(ACCENT); setOnCheckedChangeListener { _, checked -> save(checked) } })
+        line.addView(Switch(this).apply { contentDescription = title; isChecked = value; minHeight = dp(56); if (Build.VERSION.SDK_INT >= 21) buttonTintList = ColorStateList.valueOf(ACCENT); setOnCheckedChangeListener { _, checked -> save(checked) } })
         parent.addView(line)
     }
     private fun choice(parent: LinearLayout, title: String, options: List<String>, current: Int, save: (Int) -> Unit) {
@@ -939,8 +984,9 @@ class DiPlayActivity : ComponentActivity() {
     private fun button(title: String, primary: Boolean, click: () -> Unit) = Button(this).apply {
         text = uiText(title); isAllCaps = false; textSize = 18f; setTextColor(if (primary) BG else TEXT)
         typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-        background = android.graphics.drawable.RippleDrawable(ColorStateList.valueOf(0x336F9FD9), rounded(if (primary) ACCENT else SURFACE, if (primary) ACCENT else BORDER), null)
-        setPadding(dp(16), 0, dp(16), 0); minHeight = dp(56); stateListAnimator = null
+        background = if (Build.VERSION.SDK_INT >= 21) android.graphics.drawable.RippleDrawable(ColorStateList.valueOf(0x336F9FD9), rounded(if (primary) ACCENT else SURFACE, if (primary) ACCENT else BORDER), null)
+            else rounded(if (primary) ACCENT else SURFACE, if (primary) ACCENT else BORDER)
+        setPadding(dp(16), 0, dp(16), 0); minHeight = dp(56); if (Build.VERSION.SDK_INT >= 21) stateListAnimator = null
         setOnClickListener { click() }
     }
     private fun rounded(color: Int, stroke: Int) = GradientDrawable().apply { setColor(color); cornerRadius = dp(20).toFloat(); setStroke(dp(1), stroke) }

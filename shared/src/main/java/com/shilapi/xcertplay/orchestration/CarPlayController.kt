@@ -61,6 +61,8 @@ import com.shilapi.xcertplay.transport.Iap2WirelessControlTerminal
 import com.shilapi.xcertplay.transport.Iap2WirelessIdentification
 import com.shilapi.xcertplay.transport.I2cTransport
 import com.shilapi.xcertplay.transport.I2cTransportException
+import com.shilapi.xcertplay.transport.LegacyUsbConfiguration
+import com.shilapi.xcertplay.transport.HsaeBluetoothClient
 import com.shilapi.xcertplay.transport.IphoneCarPlayConfiguration
 import com.shilapi.xcertplay.transport.IphoneUsbException
 import com.shilapi.xcertplay.transport.IphoneUsbHost
@@ -159,9 +161,9 @@ class CarPlayController(
     private enum class Phase { IDLE, MFI, WIRELESS, IPHONE, REENUMERATION, DATAPATHS, CONTROL }
 
     private val appContext = context.applicationContext
-    private val usbManager = context.getSystemService(UsbManager::class.java)
+    private val usbManager = requireNotNull(androidx.core.content.ContextCompat.getSystemService(context, UsbManager::class.java))
     private val bluetoothAdapter =
-        appContext.getSystemService(BluetoothManager::class.java)?.adapter
+        androidx.core.content.ContextCompat.getSystemService(appContext, BluetoothManager::class.java)?.adapter
     private val iphoneHost = IphoneUsbHost(
         appContext,
         usbManager,
@@ -197,7 +199,8 @@ class CarPlayController(
     @Volatile private var hotspot: WirelessHotspotManager? = null
     @Volatile private var bonjour: CarPlayBonjour? = null
     @Volatile private var bluetoothSocket: BluetoothSocket? = null
-    @Volatile private var bluetoothStream: BluetoothRfcommDuplexStream? = null
+    @Volatile private var bluetoothStream: BlockingDuplexByteStream? = null
+    @Volatile private var hsaeBluetooth: HsaeBluetoothClient? = null
     @Volatile private var wirelessTunnelChannel: Iap2Session? = null
     @Volatile private var wirelessIdentification: Iap2IdentificationConfig? = null
     @Volatile private var wirelessAirPlayEndpoint: Iap2WirelessCarPlayEndpoint? = null
@@ -428,7 +431,7 @@ class CarPlayController(
         availabilityPollGeneration.incrementAndGet()
         phase = Phase.MFI
         onStatus(CarPlayStatus.DiscoveringMfi)
-        val offlineDirectory = java.io.File(appContext.noBackupFilesDir, LocalMfiAuthenticationClient.DIRECTORY)
+        val offlineDirectory = java.io.File(androidx.core.content.ContextCompat.getNoBackupFilesDir(appContext), LocalMfiAuthenticationClient.DIRECTORY)
         if (offlineDirectory.exists()) {
             openLocalMfi(offlineDirectory)
             return
@@ -843,11 +846,26 @@ class CarPlayController(
             )
             onStatus(CarPlayStatus.WaitingForPairedIphone)
 
-            val adapter = bluetoothAdapter
-                ?: throw IOException("Bluetooth adapter is unavailable")
-            if (!adapter.isEnabled) throw IOException("Bluetooth is not enabled")
-            val device = selectWirelessBluetoothDevice(adapter)
-            val hostBluetoothMac = accessoryBluetoothMac(adapter)
+            val vendor = if (bluetoothAdapter == null && HsaeBluetoothClient.isAvailable(appContext)) {
+                synchronized(this) {
+                    if (closed) throw IOException("Wireless connection was cancelled")
+                    HsaeBluetoothClient(appContext).also { hsaeBluetooth = it }
+                }
+            } else null
+            val device = if (vendor != null) {
+                if (!vendor.isEnabled()) throw IOException("Bluetooth is not enabled")
+                val devices = vendor.pairedDevices()
+                val selected = config.wirelessBluetoothDeviceAddress
+                devices.firstOrNull { it.address.equals(selected, ignoreCase = true) }
+                    ?: devices.singleOrNull().takeIf { selected == null }
+                    ?: throw IOException("Choose your paired iPhone again in DashFlow")
+            } else {
+                val adapter = bluetoothAdapter ?: throw IOException("Bluetooth adapter is unavailable")
+                if (!adapter.isEnabled) throw IOException("Bluetooth is not enabled")
+                val phone = selectWirelessBluetoothDevice(adapter)
+                HsaeBluetoothClient.Device(phone.name ?: "iPhone", phone.address)
+            }
+            val hostBluetoothMac = vendor?.localAddress() ?: accessoryBluetoothMac(checkNotNull(bluetoothAdapter))
             debugLog(
                 "wireless selected Bluetooth target name=${device.name ?: "unknown"} " +
                     "address=${device.address} localBt=$hostBluetoothMac",
@@ -910,16 +928,22 @@ class CarPlayController(
                 "wireless RFCOMM connecting address=${device.address} " +
                     "uuid=$IAP2_IPHONE_UUID",
             )
-            val socket = device
+            val stream = if (vendor != null) {
+                debugLog("wireless Bluetooth backend=HSAE AnwPhoneLink")
+                vendor.connect(device.address, UUID.fromString(IAP2_IPHONE_UUID))
+                vendor
+            } else {
+                val socket = checkNotNull(bluetoothAdapter).getRemoteDevice(device.address)
                     .createRfcommSocketToServiceRecord(UUID.fromString(IAP2_IPHONE_UUID))
                     .also { bluetoothSocket = it }
-            connectBluetoothSocket(socket, device.address)
+                connectBluetoothSocket(socket, device.address)
+                BluetoothRfcommDuplexStream(socket)
+            }.also { bluetoothStream = it }
             debugLog("wireless RFCOMM connected address=${device.address}")
             if (isStaleWirelessRun(generation)) {
                 closeWirelessStack()
                 return
             }
-            val stream = BluetoothRfcommDuplexStream(socket).also { bluetoothStream = it }
             val channel = Iap2Session.openWireless(
                 stream,
                 traceContext = "wireless-rfcomm",
@@ -1208,6 +1232,10 @@ class CarPlayController(
         bluetoothStream = null
         if (activeStream != null) closeBestEffort("wireless RFCOMM stream") { activeStream.close() }
 
+        val vendor = hsaeBluetooth
+        hsaeBluetooth = null
+        if (vendor != null) closeBestEffort("HSAE Bluetooth service") { vendor.close() }
+
         val activeSocket = bluetoothSocket
         bluetoothSocket = null
         if (activeSocket != null) closeBestEffort("wireless Bluetooth socket") { activeSocket.close() }
@@ -1271,7 +1299,7 @@ class CarPlayController(
                 permissionPollGeneration++
                 when (phase) {
                     Phase.REENUMERATION, Phase.IPHONE -> {
-                        if (IphoneCarPlayConfiguration.find(result.device) != null) {
+                        if (IphoneCarPlayConfiguration.isAvailable(result.device, usbManager)) {
                             openDataPaths(result.device)
                         } else if (reenumerationAttempts < MAXIMUM_REENUMERATION_ATTEMPTS) {
                             beginReenumeration(result.device)
@@ -1381,21 +1409,27 @@ class CarPlayController(
     }
 
     private fun openNcm(device: UsbDevice): NcmUsbBridge {
-        val configuration = IphoneCarPlayConfiguration.find(device)
-            ?: throw IphoneUsbException.Protocol(
-                "iPhone exposes no CarPlay configuration for NCM",
-            )
-        val function = NcmFunctionDiscovery.find(configuration)
-            ?: throw IphoneUsbException.Protocol("iPhone configuration does not expose an NCM function")
-        debugLog(
-            "ncm config=${configuration.id} control=${function.control.id}/${function.control.alternateSetting}" +
-                " data=${function.data.id}/${function.data.alternateSetting}" +
-                " status=${function.statusIn?.address?.let { "0x${it.toString(16)}" } ?: "none"}" +
-                " in=0x${function.bulkIn.address.toString(16)} out=0x${function.bulkOut.address.toString(16)}",
-        )
         val connection = usbManager.openDevice(device)
             ?: throw IphoneUsbException.DeviceUnavailable("Could not open the iPhone NCM connection")
-        return NcmUsbBridge.open(connection, function)
+        try {
+            val function = if (Build.VERSION.SDK_INT < 21) {
+                val configuration = LegacyUsbConfiguration.find(connection, device)
+                    ?: throw IphoneUsbException.Protocol("iPhone exposes no CarPlay configuration for NCM")
+                NcmFunctionDiscovery.find(configuration)
+            } else {
+                val configuration = IphoneCarPlayConfiguration.find(device)
+                    ?: throw IphoneUsbException.Protocol("iPhone exposes no CarPlay configuration for NCM")
+                debugLog("ncm config=${configuration.id}")
+                NcmFunctionDiscovery.find(configuration)
+            } ?: throw IphoneUsbException.Protocol("iPhone configuration does not expose an NCM function")
+            debugLog("ncm control=${function.control.id} data=${function.data.id}/${function.dataAlternateSetting}" +
+                " status=${function.statusIn?.address} in=0x${function.bulkIn.address.toString(16)}" +
+                " out=0x${function.bulkOut.address.toString(16)}")
+            return NcmUsbBridge.open(connection, function)
+        } catch (error: Throwable) {
+            connection.close()
+            throw error
+        }
     }
 
     private fun runStack(usbSession: Iap2UsbSession, ncm: NcmUsbBridge) {
@@ -1563,6 +1597,9 @@ class CarPlayController(
             type.equals("disable-bluetooth", ignoreCase = true)
 
     private fun startWirelessHotspot(generation: Int): WirelessHotspotInfo {
+        if (Build.VERSION.SDK_INT < 26 && config.wirelessHotspotMode != WirelessHotspotMode.MANUAL) {
+            throw IOException("Android 4.4 requires a built-in car hotspot; configure it in Connection setup")
+        }
         val hotspotMode = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
             config.wirelessHotspotMode == WirelessHotspotMode.WIFI_P2P
         ) {
@@ -1576,8 +1613,12 @@ class CarPlayController(
             throw IOException("The car hotspot is off. Turn it on in the car settings and connect again.")
         }
         val manager: WirelessHotspotManager = when (hotspotMode) {
-            WirelessHotspotMode.WIFI_P2P -> WifiP2pGroupManager(appContext, ::debugLog)
-            WirelessHotspotMode.LOCAL_ONLY_HOTSPOT -> LocalOnlyHotspotManager(appContext, ::debugLog)
+            WirelessHotspotMode.WIFI_P2P -> if (Build.VERSION.SDK_INT >= 29) {
+                WifiP2pGroupManager(appContext, ::debugLog)
+            } else throw IOException("Wi-Fi Direct requires Android 10 or newer")
+            WirelessHotspotMode.LOCAL_ONLY_HOTSPOT -> if (Build.VERSION.SDK_INT >= 28) {
+                LocalOnlyHotspotManager(appContext, ::debugLog)
+            } else throw IOException("Use a built-in car hotspot on this Android version")
             WirelessHotspotMode.MANUAL -> ManualHotspotManager(
                 context = appContext,
                 ssid = config.manualHotspotSsid

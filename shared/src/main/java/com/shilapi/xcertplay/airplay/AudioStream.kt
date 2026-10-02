@@ -52,9 +52,9 @@ class AudioStream(
     private var controlThread: Thread? = null
     private var started = false
 
-    fun listen(listener: Listener): Pair<Int, Int> {
-        val data = bindAnyPort()
-        val control = bindAnyPort()
+    fun listen(listener: Listener, bindAddress: InetAddress = InetAddress.getByName("::")): Pair<Int, Int> {
+        val data = bindAnyPort(bindAddress)
+        val control = bindAnyPort(bindAddress)
         dataSocket = data
         controlSocket = control
         dataThread = Thread({ runData(data, listener) }, "airplay-audio-rx").apply {
@@ -170,10 +170,10 @@ class AudioStream(
         }
     }
 
-    private fun bindAnyPort(): DatagramSocket {
+    private fun bindAnyPort(bindAddress: InetAddress): DatagramSocket {
         val socket = DatagramSocket(null)
         socket.reuseAddress = true
-        socket.bind(InetSocketAddress(InetAddress.getByName("::"), 0))
+        socket.bind(InetSocketAddress(bindAddress, 0))
         return socket
     }
 
